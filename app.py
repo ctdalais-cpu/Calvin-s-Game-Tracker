@@ -98,8 +98,7 @@ def fetch_cover_art(title):
     except: return ""
 
 # --- SIDEBAR NAVIGATION (LOGIC AT TOP, VISUALS AT BOTTOM) ---
-st.sidebar.title("🎮 Game Tracker")
-st.sidebar.markdown("<br>", unsafe_allow_html=True)
+st.sidebar.title("Menu")
 
 # 1. State Memory for PIN
 if "admin_pin_input" not in st.session_state:
