@@ -28,9 +28,9 @@ st.markdown("""
         /* Force true Box Art aspect ratio (3:4) */
         div[data-testid="stImage"] img {
             aspect-ratio: 3 / 4; 
-            object-fit: cover; /* Trims edges cleanly if the source image is slightly off */
+            object-fit: cover;
             border-radius: 6px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.4); /* Adds depth without needing a container border */
+            box-shadow: 0 4px 6px rgba(0,0,0,0.4);
             transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
             width: 100%;
         }
@@ -38,12 +38,26 @@ st.markdown("""
         /* Hover effect directly on the images */
         div[data-testid="stImage"] img:hover {
             transform: scale(1.03);
-            box-shadow: 0 6px 15px rgba(145, 70, 255, 0.4); /* Twitch purple glow */
+            box-shadow: 0 6px 15px rgba(145, 70, 255, 0.4);
         }
         
         /* Tighten up the gap between the image and the text below it */
         div[data-testid="stImage"] {
             margin-bottom: -10px; 
+        }
+
+        /* --- THE SIMPLE MOBILE FIX --- */
+        @media (max-width: 640px) {
+            div[data-testid="stHorizontalBlock"] {
+                flex-direction: row !important;
+                display: flex !important;
+                flex-wrap: wrap !important;
+            }
+            div[data-testid="column"] {
+                width: 48% !important;
+                flex: 1 1 48% !important;
+                min-width: 48% !important;
+            }
         }
     </style>
 """, unsafe_allow_html=True)
