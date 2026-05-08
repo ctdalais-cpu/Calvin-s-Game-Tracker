@@ -16,47 +16,41 @@ st.set_page_config(page_title="Game Tracker", layout="wide", initial_sidebar_sta
 # --- CUSTOM CSS: TRUE BOX ART AND CLEAN GRIDS ---
 st.markdown("""
     <style>
-        /* Hide Streamlit Branding */
+        /* [Existing Branding & Metric CSS...] */
         #MainMenu {visibility: hidden;}
         footer {visibility: hidden;}
         header {visibility: hidden;}
-        
-        /* Dashboard Metric Sizing */
         div[data-testid="stMetricValue"] { font-size: 2.2rem; font-weight: 700; }
-        div[data-testid="stSidebarNav"] { padding-top: 2rem; }
         
-        /* Force true Box Art aspect ratio (3:4) */
+        /* Box Art Styling */
         div[data-testid="stImage"] img {
             aspect-ratio: 3 / 4; 
             object-fit: cover;
             border-radius: 6px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.4);
-            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
             width: 100%;
         }
-        
-        /* Hover effect directly on the images */
-        div[data-testid="stImage"] img:hover {
-            transform: scale(1.03);
-            box-shadow: 0 6px 15px rgba(145, 70, 255, 0.4);
-        }
-        
-        /* Tighten up the gap between the image and the text below it */
-        div[data-testid="stImage"] {
-            margin-bottom: -10px; 
-        }
 
-        /* --- THE SIMPLE MOBILE FIX --- */
+        /* --- THE MOBILE GRID SLEDGEHAMMER --- */
         @media (max-width: 640px) {
+            /* 1. Force the parent row to stay a row */
             div[data-testid="stHorizontalBlock"] {
-                flex-direction: row !important;
                 display: flex !important;
+                flex-direction: row !important;
                 flex-wrap: wrap !important;
             }
-            div[data-testid="column"] {
+
+            /* 2. Target the column AND the hidden div Streamlit puts inside it */
+            div[data-testid="column"], 
+            div[data-testid="column"] > div {
                 width: 48% !important;
-                flex: 1 1 48% !important;
+                flex: 0 0 48% !important;
                 min-width: 48% !important;
+            }
+            
+            /* 3. Remove the default 'gap' Streamlit uses which can push items to new lines */
+            div[data-testid="stHorizontalBlock"] {
+                gap: 0.5rem !important;
             }
         }
     </style>
