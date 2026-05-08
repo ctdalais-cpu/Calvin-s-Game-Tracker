@@ -13,7 +13,7 @@ ADMIN_PIN = st.secrets["ADMIN_PIN"]
 
 st.set_page_config(page_title="Game Tracker", layout="wide", initial_sidebar_state="expanded")
 
-# --- CUSTOM CSS: TRUE BOX ART AND PERFECT ALIGNMENT ---
+# --- CUSTOM CSS: TRUE BOX ART AND STABLE HOVER EFFECTS ---
 st.markdown("""
     <style>
         /* Hide Streamlit Branding */
@@ -25,23 +25,22 @@ st.markdown("""
         div[data-testid="stMetricValue"] { font-size: 2.2rem; font-weight: 700; }
         div[data-testid="stSidebarNav"] { padding-top: 2rem; }
         
-        /* Force true Box Art aspect ratio (3:4) */
+        /* Force true Box Art aspect ratio (3:4) with stable scaling */
         div[data-testid="stImage"] img {
             aspect-ratio: 3 / 4; 
             object-fit: cover;
             border-radius: 6px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.4);
-            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+            transition: transform 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94), box-shadow 0.2s ease;
             width: 100%;
+            display: block; /* Fixes native HTML image gap safely */
+            transform-origin: center; /* Prevents edge-shifting on hover */
         }
         
         div[data-testid="stImage"] img:hover {
-            transform: scale(1.03);
-            box-shadow: 0 6px 15px rgba(145, 70, 255, 0.4);
-        }
-        
-        div[data-testid="stImage"] {
-            margin-bottom: -5px; 
+            transform: scale(1.02); /* Slightly gentler scale to prevent scrollbar triggering */
+            box-shadow: 0 8px 20px rgba(145, 70, 255, 0.5); /* Twitch purple glow */
+            z-index: 10;
         }
 
         /* TEXT TRUNCATION CLASSES FOR PERFECT ALIGNMENT */
@@ -50,7 +49,7 @@ st.markdown("""
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            margin-top: 0.5rem;
+            margin-top: 0.3rem; /* Tightened safely here instead of negative image margins */
             margin-bottom: 0.1rem;
             width: 100%;
             display: block;
