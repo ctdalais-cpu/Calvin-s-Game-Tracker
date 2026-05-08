@@ -13,7 +13,7 @@ ADMIN_PIN = st.secrets["ADMIN_PIN"]
 
 st.set_page_config(page_title="Game Hub Pro", layout="wide", initial_sidebar_state="expanded")
 
-# --- 2. PREMIUM POLISH CSS ---
+# --- 2. MASTER UI POLISH ---
 st.markdown("""
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
@@ -24,7 +24,7 @@ st.markdown("""
             font-family: 'Inter', sans-serif;
         }
         
-        /* Transparent Glass Cards */
+        /* Unified Glass Cards */
         div[data-testid="stVerticalBlock"] > div[style*="border"] {
             background: rgba(255, 255, 255, 0.02) !important;
             backdrop-filter: blur(12px);
@@ -34,12 +34,8 @@ st.markdown("""
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
             transition: all 0.3s ease;
         }
-        div[data-testid="stVerticalBlock"] > div[style*="border"]:hover {
-            background: rgba(255, 255, 255, 0.05) !important;
-            transform: translateY(-2px);
-        }
 
-        /* Aspect Ratio Lock for Box Art */
+        /* Standardized Box Art Ratio */
         [data-testid="stImage"] img {
             border-radius: 5px;
             aspect-ratio: 3 / 4;
@@ -47,48 +43,25 @@ st.markdown("""
             width: 100%;
         }
 
-        /* Typography & Headers */
-        h2 { 
-            font-weight: 800 !important;
-            letter-spacing: -1.5px !important; 
-            color: #FFFFFF !important;
-            margin-bottom: 2rem !important;
-        }
+        /* Clean Headers */
+        h2 { font-weight: 800 !important; letter-spacing: -1.5px !important; color: #FFFFFF !important; margin-bottom: 2rem !important; }
         h5 { 
-            font-size: 0.7rem !important; 
-            font-weight: 800 !important;
-            color: #94A3B8 !important; 
-            letter-spacing: 2px; 
-            text-transform: uppercase;
-            margin-bottom: 1rem !important;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-            padding-bottom: 5px;
+            font-size: 0.7rem !important; font-weight: 800 !important; color: #94A3B8 !important; 
+            letter-spacing: 2px; text-transform: uppercase; margin-bottom: 1rem !important;
+            border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 5px;
         }
         
-        .game-title {
-            font-size: 0.7rem !important;
-            font-weight: 600;
-            text-align: center;
-            margin-top: 8px;
-            color: #F8FAFC;
-            line-height: 1.2;
-        }
-        .game-sub {
-            font-size: 0.6rem !important;
-            text-align: center;
-            color: #64748B;
-            margin-bottom: 5px;
-        }
+        .game-title { font-size: 0.7rem !important; font-weight: 600; text-align: center; margin-top: 8px; color: #F8FAFC; line-height: 1.2; }
+        .game-sub { font-size: 0.6rem !important; text-align: center; color: #64748B; margin-bottom: 2px; }
+        .game-score { font-size: 0.9rem !important; font-weight: 800; text-align: center; color: #9146FF; margin-top: 0px; }
 
-        /* Metric/Analytics Styling */
-        div[data-testid="stMetricValue"] { font-weight: 800; color: #9146FF; }
-        
+        /* Hide Clutter */
         #MainMenu, footer, header {visibility: hidden;}
         .block-container { padding-top: 2rem; }
     </style>
 """, unsafe_allow_html=True)
 
-# --- 3. DATA ENGINES ---
+# --- 3. DATA ENGINE ---
 scopes = ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive']
 creds = Credentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=scopes)
 gc = gspread.authorize(creds)
@@ -129,7 +102,7 @@ if st.session_state.admin_pin_input == ADMIN_PIN:
     pages.extend(["Add Game", "Edit Database"])
 page = st.sidebar.radio("Navigation", pages)
 
-# --- 5. DASHBOARD ---
+# --- 5. PAGE: DASHBOARD ---
 if page == "Dashboard":
     st.markdown("<h2>COMMAND CENTER</h2>", unsafe_allow_html=True)
     
@@ -182,57 +155,60 @@ if page == "Dashboard":
                         st.markdown(f"<p class='game-title' style='font-size:0.6rem;'>{row['Title']}</p>", unsafe_allow_html=True)
                         st.markdown(f"<p class='game-sub' style='color:#9146FF;'>{row['ReleaseDate']}</p>", unsafe_allow_html=True)
 
-    # --- ANALYTICS ---
+    # Analytics Section (Footer)
     st.divider()
     if not played.empty:
-        st.markdown("<h5>Insights & Analytics</h5>", unsafe_allow_html=True)
+        st.markdown("<h5>Analytics</h5>", unsafe_allow_html=True)
         c1, c2, c3 = st.columns(3)
         c_layout = dict(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color="white", size=10), margin=dict(t=30, b=10, l=10, r=10))
-        
         with c1:
             fig1 = px.pie(played, names='Genre', hole=0.5, title="GENRE DISTRO", template="plotly_dark")
-            fig1.update_layout(c_layout)
-            st.plotly_chart(fig1, use_container_width=True)
+            fig1.update_layout(c_layout); st.plotly_chart(fig1, use_container_width=True)
         with c2:
             played['Year'] = played['ReleaseDate'].astype(str).str[:4]
             yearly = played.groupby('Year')['Base_Score'].mean().reset_index()
             fig2 = px.bar(yearly, x='Year', y='Base_Score', title="SCORE TREND", template="plotly_dark")
-            fig2.update_traces(marker_color='#9146FF')
-            fig2.update_layout(c_layout)
-            st.plotly_chart(fig2, use_container_width=True)
+            fig2.update_traces(marker_color='#9146FF'); fig2.update_layout(c_layout); st.plotly_chart(fig2, use_container_width=True)
         with c3:
             fig3 = px.scatter(played, x='OpenCritic', y='Base_Score', hover_name='Title', title="ME VS CRITICS", template="plotly_dark")
-            fig3.update_traces(marker=dict(size=8, color='#9146FF'))
-            fig3.update_layout(c_layout)
-            st.plotly_chart(fig3, use_container_width=True)
+            fig3.update_traces(marker=dict(size=8, color='#9146FF')); fig3.update_layout(c_layout); st.plotly_chart(fig3, use_container_width=True)
 
-    # --- METRICS ---
     m1, m2, m3, m4 = st.columns(4)
     m1.metric("COMPLETED", len(played))
     m2.metric("AVG SCORE", f"{played['Base_Score'].mean():.1f}" if not played.empty else "0")
     m3.metric("BACKLOG", len(backlog))
     m4.metric("NEXT UP", upcoming.iloc[0]['Title'] if not upcoming.empty else "N/A")
 
-# --- RANKINGS ---
+# --- 6. PAGE: RANKINGS (CLEAN TOP 10 + TABLE) ---
 elif page == "Rankings":
     st.markdown("<h2>HALL OF FAME</h2>", unsafe_allow_html=True)
     played_sorted = df[df['Status'] == 'Played'].sort_values('Base_Score', ascending=False)
     
     if not played_sorted.empty:
-        top_3 = played_sorted.head(3)
-        p_cols = st.columns(3)
-        medals = ["🥇", "🥈", "🥉"]
-        for i, (_, row) in enumerate(top_3.iterrows()):
-            with p_cols[i]:
-                with st.container(border=True):
-                    st.markdown(f"<h4 style='text-align:center;'>{medals[i]}</h4>", unsafe_allow_html=True)
-                    if row['Cover_URL']: st.image(row['Cover_URL'])
-                    st.markdown(f"<p class='game-title'>{row['Title']}</p><h3 style='text-align:center; color:#9146FF;'>{row['Base_Score']}</h3>", unsafe_allow_html=True)
+        # A. Top 10 Visual Grid
+        st.markdown("<h5>The Top Ten</h5>", unsafe_allow_html=True)
+        top_10 = played_sorted.head(10)
         
-        st.divider()
-        st.dataframe(played_sorted[['Title', 'Platform', 'Base_Score', 'OpenCritic', 'Genre']], use_container_width=True, hide_index=True)
+        r_grid = st.columns(5) # Two rows of 5
+        for i, (_, row) in enumerate(top_10.iterrows()):
+            with r_grid[i % 5]:
+                with st.container(border=True):
+                    if row['Cover_URL']: st.image(row['Cover_URL'])
+                    st.markdown(f"<p class='game-title'>{row['Title']}</p>", unsafe_allow_html=True)
+                    st.markdown(f"<p class='game-score'>{row['Base_Score']}</p>", unsafe_allow_html=True)
+                    st.markdown(f"<p class='game-sub'>{row['Genre']}</p>", unsafe_allow_html=True)
+        
+        st.write("<br><br>", unsafe_allow_html=True)
+        
+        # B. The Rest (Index 11 onwards)
+        if len(played_sorted) > 10:
+            st.markdown("<h5>The Rest of the Pack</h5>", unsafe_allow_html=True)
+            rest_of_pack = played_sorted.iloc[10:]
+            st.dataframe(rest_of_pack[['Title', 'Platform', 'Base_Score', 'OpenCritic', 'Genre']], use_container_width=True, hide_index=True)
+    else:
+        st.info("The Hall of Fame is currently empty. Score some games to see them here!")
 
-# --- ADMIN ---
+# --- 7. ADMIN ---
 elif page == "Add Game":
     st.markdown("<h2>ADD TO LIBRARY</h2>", unsafe_allow_html=True)
     with st.form("add_game"):
