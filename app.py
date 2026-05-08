@@ -13,78 +13,78 @@ ADMIN_PIN = st.secrets["ADMIN_PIN"]
 
 st.set_page_config(page_title="Game Hub Pro", layout="wide", initial_sidebar_state="expanded")
 
-# --- 2. THE PRECISION GRID CSS ---
+# --- 2. PREMIUM POLISH CSS ---
 st.markdown("""
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
+
         .stApp {
             background: radial-gradient(circle at 20% 30%, #1a1c23 0%, #0e1117 100%);
             color: #E2E8F0;
+            font-family: 'Inter', sans-serif;
         }
         
-        /* Glass Containers: No Borders, Soft Shadows */
+        /* Transparent Glass Cards */
         div[data-testid="stVerticalBlock"] > div[style*="border"] {
-            background: rgba(255, 255, 255, 0.03) !important;
+            background: rgba(255, 255, 255, 0.02) !important;
             backdrop-filter: blur(12px);
-            border-radius: 8px;
+            border-radius: 10px;
             border: none !important;
-            padding: 8px !important;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-            transition: transform 0.2s ease;
+            padding: 10px !important;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s ease;
         }
         div[data-testid="stVerticalBlock"] > div[style*="border"]:hover {
             background: rgba(255, 255, 255, 0.05) !important;
             transform: translateY(-2px);
         }
 
-        /* LOCKED ASPECT RATIO FOR BOX ART */
+        /* Aspect Ratio Lock for Box Art */
         [data-testid="stImage"] img {
-            border-radius: 4px;
-            aspect-ratio: 3 / 4; /* Standard Game Box Art Ratio */
+            border-radius: 5px;
+            aspect-ratio: 3 / 4;
             object-fit: cover;
             width: 100%;
-            display: block;
-            margin: 0 auto;
         }
 
-        /* Typography */
-        h2 { letter-spacing: -1px; margin-bottom: 1.5rem !important; }
+        /* Typography & Headers */
+        h2 { 
+            font-weight: 800 !important;
+            letter-spacing: -1.5px !important; 
+            color: #FFFFFF !important;
+            margin-bottom: 2rem !important;
+        }
         h5 { 
-            font-size: 0.75rem !important; 
+            font-size: 0.7rem !important; 
+            font-weight: 800 !important;
             color: #94A3B8 !important; 
-            letter-spacing: 1.5px; 
+            letter-spacing: 2px; 
             text-transform: uppercase;
-            margin-bottom: 0.8rem !important;
-            border-left: 3px solid #9146FF;
-            padding-left: 10px;
+            margin-bottom: 1rem !important;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            padding-bottom: 5px;
         }
         
         .game-title {
             font-size: 0.7rem !important;
-            font-weight: 700;
+            font-weight: 600;
             text-align: center;
-            margin-top: 6px;
-            margin-bottom: 0px;
+            margin-top: 8px;
+            color: #F8FAFC;
             line-height: 1.2;
-            color: #FFFFFF;
         }
         .game-sub {
             font-size: 0.6rem !important;
             text-align: center;
-            color: #94A3B8;
-            margin-bottom: 4px;
+            color: #64748B;
+            margin-bottom: 5px;
         }
 
-        /* Compact Buttons */
-        .stButton>button {
-            padding: 1px 5px;
-            font-size: 0.6rem !important;
-            height: 22px;
-            min-height: 22px;
-            border-radius: 4px;
-        }
-
+        /* Metric/Analytics Styling */
+        div[data-testid="stMetricValue"] { font-weight: 800; color: #9146FF; }
+        
         #MainMenu, footer, header {visibility: hidden;}
-        .block-container { padding-top: 1.5rem; }
+        .block-container { padding-top: 2rem; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -129,7 +129,7 @@ if st.session_state.admin_pin_input == ADMIN_PIN:
     pages.extend(["Add Game", "Edit Database"])
 page = st.sidebar.radio("Navigation", pages)
 
-# --- 5. PAGE: DASHBOARD ---
+# --- 5. DASHBOARD ---
 if page == "Dashboard":
     st.markdown("<h2>COMMAND CENTER</h2>", unsafe_allow_html=True)
     
@@ -138,12 +138,9 @@ if page == "Dashboard":
     upcoming = df[df['Status'] == 'Upcoming'].copy()
     played = df[df['Status'] == 'Played']
 
-    # CORE HIERARCHY
-    col_left, col_right = st.columns([2, 1], gap="large")
+    col_left, col_right = st.columns([2.1, 0.9], gap="large")
 
-    # LEFT SIDE: CURRENTLY PLAYING & BACKLOG
     with col_left:
-        # A. Currently Playing (5 per row)
         st.markdown("<h5>Currently Playing</h5>", unsafe_allow_html=True)
         if not playing.empty:
             p_grid = st.columns(5)
@@ -151,16 +148,14 @@ if page == "Dashboard":
                 with p_grid[i % 5]:
                     with st.container(border=True):
                         if row['Cover_URL']: st.image(row['Cover_URL'])
-                        st.markdown(f"<p class='game-title'>{row['Title']}</p>", unsafe_allow_html=True)
-                        st.markdown(f"<p class='game-sub'>{row['Platform']}</p>", unsafe_allow_html=True)
+                        st.markdown(f"<p class='game-title'>{row['Title']}</p><p class='game-sub'>{row['Platform']}</p>", unsafe_allow_html=True)
                         if st.session_state.admin_pin_input == ADMIN_PIN:
                             if st.button("FINISH", key=f"fin_{idx}", use_container_width=True):
                                 st.session_state.scoring_game = row['Title']; st.rerun()
-        else: st.caption("Nothing active.")
+        else: st.caption("No active sessions.")
 
         st.write("<br>", unsafe_allow_html=True)
 
-        # B. Backlog (6 per row)
         st.markdown("<h5>The Backlog</h5>", unsafe_allow_html=True)
         if not backlog.empty:
             b_grid = st.columns(6)
@@ -168,55 +163,91 @@ if page == "Dashboard":
                 with b_grid[i % 6]:
                     with st.container(border=True):
                         if row['Cover_URL']: st.image(row['Cover_URL'])
-                        st.markdown(f"<p class='game-title'>{row['Title']}</p>", unsafe_allow_html=True)
-                        st.markdown(f"<p class='game-sub'>{row['Platform']}</p>", unsafe_allow_html=True)
+                        st.markdown(f"<p class='game-title'>{row['Title']}</p><p class='game-sub'>{row['Platform']}</p>", unsafe_allow_html=True)
                         if st.session_state.admin_pin_input == ADMIN_PIN:
                             if st.button("PLAY", key=f"bl_{idx}", use_container_width=True):
                                 df.loc[df['Title'] == row['Title'], 'Status'] = 'Playing'
                                 save_database(df); st.rerun()
 
-    # RIGHT SIDE: UPCOMING
     with col_right:
         st.markdown("<h5>Upcoming Releases</h5>", unsafe_allow_html=True)
         if not upcoming.empty:
             upcoming['DateObj'] = pd.to_datetime(upcoming['ReleaseDate'], errors='coerce')
             upcoming = upcoming.sort_values('DateObj')
-            u_grid = st.columns(4) # 4 per row in the 1/3 column
-            for i, (_, row) in enumerate(upcoming.iterrows()):
-                with u_grid[i % 4]:
+            u_grid = st.columns(3)
+            for i, (_, row) in enumerate(upcoming.head(12).iterrows()):
+                with u_grid[i % 3]:
                     with st.container(border=True):
                         if row['Cover_URL']: st.image(row['Cover_URL'])
-                        st.markdown(f"<p class='game-title'>{row['Title']}</p>", unsafe_allow_html=True)
-                        st.markdown(f"<p class='game-sub'>{row['ReleaseDate']}</p>", unsafe_allow_html=True)
-        else: st.caption("No upcoming games.")
+                        st.markdown(f"<p class='game-title' style='font-size:0.6rem;'>{row['Title']}</p>", unsafe_allow_html=True)
+                        st.markdown(f"<p class='game-sub' style='color:#9146FF;'>{row['ReleaseDate']}</p>", unsafe_allow_html=True)
 
-    # --- ANALYTICS & METRICS (Footer) ---
+    # --- ANALYTICS ---
     st.divider()
+    if not played.empty:
+        st.markdown("<h5>Insights & Analytics</h5>", unsafe_allow_html=True)
+        c1, c2, c3 = st.columns(3)
+        c_layout = dict(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color="white", size=10), margin=dict(t=30, b=10, l=10, r=10))
+        
+        with c1:
+            fig1 = px.pie(played, names='Genre', hole=0.5, title="GENRE DISTRO", template="plotly_dark")
+            fig1.update_layout(c_layout)
+            st.plotly_chart(fig1, use_container_width=True)
+        with c2:
+            played['Year'] = played['ReleaseDate'].astype(str).str[:4]
+            yearly = played.groupby('Year')['Base_Score'].mean().reset_index()
+            fig2 = px.bar(yearly, x='Year', y='Base_Score', title="SCORE TREND", template="plotly_dark")
+            fig2.update_traces(marker_color='#9146FF')
+            fig2.update_layout(c_layout)
+            st.plotly_chart(fig2, use_container_width=True)
+        with c3:
+            fig3 = px.scatter(played, x='OpenCritic', y='Base_Score', hover_name='Title', title="ME VS CRITICS", template="plotly_dark")
+            fig3.update_traces(marker=dict(size=8, color='#9146FF'))
+            fig3.update_layout(c_layout)
+            st.plotly_chart(fig3, use_container_width=True)
+
+    # --- METRICS ---
     m1, m2, m3, m4 = st.columns(4)
     m1.metric("COMPLETED", len(played))
-    m2.metric("AVERAGE SCORE", f"{played['Base_Score'].mean():.1f}" if not played.empty else "0")
-    m3.metric("BACKLOG SIZE", len(backlog))
-    m4.metric("TARGET", upcoming.iloc[0]['Title'] if not upcoming.empty else "N/A")
+    m2.metric("AVG SCORE", f"{played['Base_Score'].mean():.1f}" if not played.empty else "0")
+    m3.metric("BACKLOG", len(backlog))
+    m4.metric("NEXT UP", upcoming.iloc[0]['Title'] if not upcoming.empty else "N/A")
 
-# --- REMAINING PAGES ---
+# --- RANKINGS ---
 elif page == "Rankings":
     st.markdown("<h2>HALL OF FAME</h2>", unsafe_allow_html=True)
     played_sorted = df[df['Status'] == 'Played'].sort_values('Base_Score', ascending=False)
-    st.dataframe(played_sorted[['Title', 'Platform', 'Base_Score', 'OpenCritic']], use_container_width=True, hide_index=True)
+    
+    if not played_sorted.empty:
+        top_3 = played_sorted.head(3)
+        p_cols = st.columns(3)
+        medals = ["🥇", "🥈", "🥉"]
+        for i, (_, row) in enumerate(top_3.iterrows()):
+            with p_cols[i]:
+                with st.container(border=True):
+                    st.markdown(f"<h4 style='text-align:center;'>{medals[i]}</h4>", unsafe_allow_html=True)
+                    if row['Cover_URL']: st.image(row['Cover_URL'])
+                    st.markdown(f"<p class='game-title'>{row['Title']}</p><h3 style='text-align:center; color:#9146FF;'>{row['Base_Score']}</h3>", unsafe_allow_html=True)
+        
+        st.divider()
+        st.dataframe(played_sorted[['Title', 'Platform', 'Base_Score', 'OpenCritic', 'Genre']], use_container_width=True, hide_index=True)
 
+# --- ADMIN ---
 elif page == "Add Game":
-    with st.form("add"):
+    st.markdown("<h2>ADD TO LIBRARY</h2>", unsafe_allow_html=True)
+    with st.form("add_game"):
         t, p = st.text_input("Title"), st.text_input("Platform")
         st_select = st.selectbox("Status", ["Backlog", "Playing", "Upcoming"])
-        if st.form_submit_button("Save"):
+        if st.form_submit_button("SAVE GAME"):
             url = fetch_cover_art(t)
             new_row = {'Title': t, 'Platform': p, 'Status': st_select, 'Cover_URL': url, 'ReleaseDate': str(datetime.date.today()), 'Base_Score': 0}
             df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
             save_database(df); st.rerun()
 
 elif page == "Edit Database":
+    st.markdown("<h2>DATABASE MANAGEMENT</h2>", unsafe_allow_html=True)
     ed = st.data_editor(df, num_rows="dynamic")
-    if st.button("Save Changes"): save_database(ed); st.success("Updated")
+    if st.button("SAVE CHANGES"): save_database(ed); st.success("Database Updated")
 
 st.sidebar.divider()
 st.sidebar.text_input("Admin Access", type="password", key="admin_pin_input")
