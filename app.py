@@ -13,7 +13,7 @@ ADMIN_PIN = st.secrets["ADMIN_PIN"]
 
 st.set_page_config(page_title="Game Tracker", layout="wide", initial_sidebar_state="expanded")
 
-# --- CUSTOM CSS: TRUE BOX ART AND STABLE HOVER EFFECTS ---
+# --- CUSTOM CSS: TRUE BOX ART AND CLEAN GRIDS ---
 st.markdown("""
     <style>
         /* Hide Streamlit Branding */
@@ -25,44 +25,25 @@ st.markdown("""
         div[data-testid="stMetricValue"] { font-size: 2.2rem; font-weight: 700; }
         div[data-testid="stSidebarNav"] { padding-top: 2rem; }
         
-        /* Force true Box Art aspect ratio (3:4) with stable scaling */
+        /* Force true Box Art aspect ratio (3:4) */
         div[data-testid="stImage"] img {
             aspect-ratio: 3 / 4; 
-            object-fit: cover;
+            object-fit: cover; /* Trims edges cleanly if the source image is slightly off */
             border-radius: 6px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.4);
-            transition: transform 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94), box-shadow 0.2s ease;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.4); /* Adds depth without needing a container border */
+            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
             width: 100%;
-            display: block; 
-            transform-origin: center; 
         }
         
+        /* Hover effect directly on the images */
         div[data-testid="stImage"] img:hover {
-            transform: scale(1.02); 
-            box-shadow: 0 8px 20px rgba(145, 70, 255, 0.5); 
-            z-index: 10;
+            transform: scale(1.03);
+            box-shadow: 0 6px 15px rgba(145, 70, 255, 0.4); /* Twitch purple glow */
         }
-
-        /* TEXT TRUNCATION CLASSES FOR PERFECT ALIGNMENT */
-        .grid-title {
-            font-weight: 600;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            margin-top: 0.3rem; 
-            margin-bottom: 0.1rem;
-            width: 100%;
-            display: block;
-        }
-        .grid-caption {
-            font-size: 0.85rem;
-            color: rgba(250, 250, 250, 0.6);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            margin-bottom: 0.5rem;
-            width: 100%;
-            display: block;
+        
+        /* Tighten up the gap between the image and the text below it */
+        div[data-testid="stImage"] {
+            margin-bottom: -10px; 
         }
     </style>
 """, unsafe_allow_html=True)
@@ -84,37 +65,29 @@ MASTER_COLUMNS = [
     'S_Gameplay', 'S_Visuals', 'S_Audio', 'S_Fun', 'Bonus_1_Name', 'S_Bonus_1', 'Bonus_2_Name', 'S_Bonus_2'
 ]
 
-# --- GOOGLE SHEETS CONNECTION & CACHING ---
+# --- GOOGLE SHEETS CONNECTION ---
 scopes = ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive']
 creds = Credentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=scopes)
 gc = gspread.authorize(creds)
 sheet = gc.open("Game Tracker Database").sheet1
 
-@st.cache_data
-def load_database():
-    records = sheet.get_all_records()
-    if records:
-        d = pd.DataFrame(records)
-        d['ReleaseDate'] = d['ReleaseDate'].astype(str)
-        for col in MASTER_COLUMNS:
-            if col not in d.columns:
-                d[col] = 0 if 'Score' in col or 'Elo' in col else ""
-        return d
-    else:
-        d = pd.DataFrame(columns=MASTER_COLUMNS)
-        sheet.append_row(MASTER_COLUMNS)
-        return d
-
-df = load_database()
+records = sheet.get_all_records()
+if records:
+    df = pd.DataFrame(records)
+    df['ReleaseDate'] = df['ReleaseDate'].astype(str)
+    for col in MASTER_COLUMNS:
+        if col not in df.columns:
+            df[col] = 0 if 'Score' in col or 'Elo' in col else ""
+else:
+    df = pd.DataFrame(columns=MASTER_COLUMNS)
+    sheet.append_row(MASTER_COLUMNS)
 
 def save_database(dataframe):
     dataframe = dataframe.fillna("")
     data_to_write = [dataframe.columns.values.tolist()] + dataframe.values.tolist()
     sheet.clear()
     sheet.update(data_to_write)
-    st.cache_data.clear() # Clears memory so the next click pulls fresh data
 
-@st.cache_data
 def fetch_cover_art(title):
     try:
         auth_res = requests.post(f"https://id.twitch.tv/oauth2/token?client_id={CLIENT_ID}&client_secret={CLIENT_SECRET}&grant_type=client_credentials")
@@ -207,10 +180,11 @@ if page == "Dashboard":
                 play_cols = st.columns(4)
                 for idx, (_, row) in enumerate(playing_games.iterrows()):
                     with play_cols[idx % 4]:
+                        # Removed st.container, writing directly to the column for a cleaner look
                         if pd.notna(row['Cover_URL']) and row['Cover_URL'] != "": 
                             st.image(row['Cover_URL'], use_container_width=True)
-                        st.markdown(f'<div class="grid-title">{row["Title"]}</div>', unsafe_allow_html=True)
-                        st.markdown(f'<div class="grid-caption">{row["Platform"]} &bull; {row["ReleaseDate"]}</div>', unsafe_allow_html=True)
+                        st.write(f"**{row['Title']}**")
+                        st.caption(f"{row['Platform']} • {row['ReleaseDate']}")
                         if st.session_state.admin_pin_input == ADMIN_PIN:
                             if st.button("Finish", key=f"fin_{row['Title']}", use_container_width=True):
                                 st.session_state.scoring_game = row['Title']
@@ -228,8 +202,8 @@ if page == "Dashboard":
                 with back_cols[idx % 6]:
                     if pd.notna(row['Cover_URL']) and row['Cover_URL'] != "": 
                         st.image(row['Cover_URL'], use_container_width=True)
-                    st.markdown(f'<div class="grid-title">{row["Title"]}</div>', unsafe_allow_html=True)
-                    st.markdown(f'<div class="grid-caption">{row["Platform"]}</div>', unsafe_allow_html=True)
+                    st.write(f"**{row['Title']}**")
+                    st.caption(f"{row['Platform']}")
                     if st.session_state.admin_pin_input == ADMIN_PIN:
                         if st.button("Play", key=f"start_{row['Title']}", use_container_width=True):
                             df.loc[df['Title'] == row['Title'], 'Status'] = 'Playing'
@@ -252,8 +226,8 @@ if page == "Dashboard":
                     with up_cols[index % 4]: 
                         if pd.notna(row['Cover_URL']) and row['Cover_URL'] != "": 
                             st.image(row['Cover_URL'], use_container_width=True)
-                        st.markdown(f'<div class="grid-title">{row["Title"]}</div>', unsafe_allow_html=True)
-                        st.markdown(f'<div class="grid-caption">{row["ReleaseDate"]} &bull; {row["Platform"]}</div>', unsafe_allow_html=True)
+                        st.write(f"**{row['Title']}**")
+                        st.caption(f"{row['ReleaseDate']} • {row['Platform']}")
             elif view_mode == "Agenda":
                 upcoming_all['MonthYear'] = upcoming_all['DateObj'].dt.strftime('%B %Y').fillna('TBD')
                 for month, group in upcoming_all.groupby('MonthYear', sort=False):
@@ -347,7 +321,7 @@ elif page == "Rankings":
             
             c_left, c_right = st.columns([2, 1], gap="large")
             with c_left: 
-                # Top 10 Grid - Truncated for alignment
+                # Top 10 Grid - Restored with all specific data
                 st.subheader("Top 10 Rankings")
                 top_10 = rv.head(10)
                 t10_cols = st.columns(5)
@@ -356,8 +330,8 @@ elif page == "Rankings":
                         st.markdown(f"**#{row['Rank']}**")
                         if pd.notna(row['Cover_URL']) and row['Cover_URL'] != "": 
                             st.image(row['Cover_URL'], use_container_width=True)
-                        st.markdown(f'<div class="grid-title">{row["Title"]}</div>', unsafe_allow_html=True)
-                        st.markdown(f'<div class="grid-caption">{row["Platform"]} &bull; {row["ReleaseDate"]}</div>', unsafe_allow_html=True)
+                        st.write(f"**{row['Title']}**")
+                        st.caption(f"{row['Platform']} • {row['ReleaseDate']}")
                         st.write(f"⭐ **{row['Base_Score']}**")
                 
                 st.write("")
