@@ -262,28 +262,50 @@ if page == "Dashboard":
             st.plotly_chart(fig1, use_container_width=True)
           
         with c_chart2:
+            # Bar Chart: Avg Score by Year
             played_games['Year'] = played_games['ReleaseDate'].astype(str).str[:4]
             yearly_avg = played_games.groupby('Year')['Base_Score'].mean().reset_index()
-            fig2 = px.bar(yearly_avg, x='Year', y='Base_Score', title="Avg Score by Release Year", range_y=[0,10], template="plotly_dark")
-            fig2.update_traces(marker_color='#9146FF') 
-            fig2.update_layout(margin=dict(t=40, b=10, l=10, r=10), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
+            fig2 = px.bar(yearly_avg, x='Year', y='Base_Score', title="Avg Score by Release Year", range_y=[0,11], template="plotly_dark")
+            
+            # STYLING: Bold labels on top of bars
+            fig2.update_traces(
+                marker_color='#9146FF',
+                texttemplate='<b>%{y:.1f}</b>', 
+                textposition='outside',
+                textfont=dict(size=14, color="white")
+            )
+            
+            fig2.update_layout(
+                margin=dict(t=40, b=10, l=10, r=10), 
+                paper_bgcolor='rgba(0,0,0,0)', 
+                plot_bgcolor='rgba(0,0,0,0)',
+                yaxis_visible=False # Hiding the axis makes it look much cleaner since we have labels
+            )
             st.plotly_chart(fig2, use_container_width=True)
 
         with c_chart3:
-            # Calculate average score per genre
+            # Horizontal Bar Chart: Avg Score by Genre
             genre_avg = played_games.groupby('Genre')['Base_Score'].mean().reset_index()
-            # Sort by score ascending=True so the highest score is at the top of the horizontal chart
             genre_avg = genre_avg.sort_values(by='Base_Score', ascending=True) 
             
-            fig3 = px.bar(
-                genre_avg, 
-                x='Base_Score', 
-                y='Genre', 
-                orientation='h', 
-                title="Avg Score by Genre", 
-                range_x=[0,10], 
-                template="plotly_dark"
+            fig3 = px.bar(genre_avg, x='Base_Score', y='Genre', orientation='h', title="Avg Score by Genre", range_x=[0,11], template="plotly_dark")
+            
+            # STYLING: Bold labels at the end of horizontal bars
+            fig3.update_traces(
+                marker_color='#9146FF',
+                texttemplate='<b>%{x:.1f}</b>',
+                textposition='outside',
+                textfont=dict(size=14, color="white")
             )
+            
+            fig3.update_layout(
+                margin=dict(t=40, b=10, l=10, r=10), 
+                xaxis_visible=False, # Hide axis for that "app" feel
+                yaxis_title=None,
+                paper_bgcolor='rgba(0,0,0,0)', 
+                plot_bgcolor='rgba(0,0,0,0)'
+            )
+            st.plotly_chart(fig3, use_container_width=True)
             
             # Apply your signature purple accent
             fig3.update_traces(marker_color='#9146FF')
