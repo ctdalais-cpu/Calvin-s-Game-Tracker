@@ -250,11 +250,15 @@ if page == "Dashboard":
     if len(played_games) > 0:
         c_chart1, c_chart2, c_chart3 = st.columns(3)
         
-        with c_chart1:
+      with c_chart1:
             genre_counts = played_games['Genre'].value_counts().reset_index()
             genre_counts.columns = ['Genre', 'Count']
             fig1 = px.pie(genre_counts, values='Count', names='Genre', title="Most Played Genres", hole=0.4, template="plotly_dark")
-            fig1.update_layout(margin=dict(t=40, b=10, l=10, r=10), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
+            
+            # NEW: Force the chart to display the Genre name (label) on the slices
+            fig1.update_traces(textinfo='label', textposition='inside')
+            
+            fig1.update_layout(margin=dict(t=40, b=10, l=10, r=10), showlegend=False, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
             st.plotly_chart(fig1, use_container_width=True)
 
         with c_chart2:
