@@ -45,28 +45,6 @@ st.markdown("""
         div[data-testid="stImage"] {
             margin-bottom: -10px; 
         }
-
- /* Force the row container to stay as a row on mobile */
-[data-testid="stHorizontalBlock"] {
-    display: flex !important;
-    flex-direction: row !important;
-    flex-wrap: wrap !important;
-}
-
-/* Force each column to take exactly half width (2 per row) */
-[data-testid="stHorizontalBlock"] > div[data-testid="column"] {
-    width: 49% !important;
-    flex: 0 1 49% !important;
-    min-width: 49% !important;
-}
-
-/* Optional: Adjust spacing for mobile */
-@media (max-width: 640px) {
-    [data-testid="stHorizontalBlock"] {
-        gap: 5px !important;
-    }
-}
-   
     </style>
 """, unsafe_allow_html=True)
 
