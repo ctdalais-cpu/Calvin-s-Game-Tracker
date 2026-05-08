@@ -394,7 +394,7 @@ elif page == "Rankings":
         st.info("Your collection is currently empty.")
 
             # THE MODAL-STYLE INSPECTOR (Appears if "Details" is clicked)
-            if 'inspect_game' in st.session_state:
+        if 'inspect_game' in st.session_state:
                 st.divider()
                 st.subheader(f"Deep Dive: {st.session_state.inspect_game}")
                 gd = rv[rv['Title'] == st.session_state.inspect_game].iloc[0]
