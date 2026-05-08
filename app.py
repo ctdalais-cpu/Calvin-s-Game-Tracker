@@ -75,6 +75,9 @@ def fetch_cover_art(title):
     except: return ""
 
 # --- SIDEBAR NAVIGATION WITH ADMIN BOUNCER ---
+st.sidebar.title("🎮 Game Tracker")
+st.sidebar.divider()
+
 available_pages = ["Dashboard", "Rankings"]
 st.sidebar.write("---")
 user_pin = st.sidebar.text_input("Admin Passcode:", type="password")
@@ -86,7 +89,17 @@ elif user_pin != "":
 
 page = st.sidebar.radio("Navigation", available_pages, label_visibility="collapsed")
 
-
+# --- PAGE 1: DASHBOARD ---
+if page == "Dashboard":
+    st.title("Dashboard")
+    
+    # We grab the data early so we can use it throughout the page
+    played_games = df[df['Status'] == 'Played']
+    upcoming_all = df[df['Status'] == 'Upcoming'].copy()
+    
+    dash_left, dash_right = st.columns([1.2, 1], gap="large")
+    
+    with dash_left:
         # SECTION: CURRENTLY PLAYING
         st.subheader("Currently Playing")
         playing_games = df[df['Status'] == 'Playing']
@@ -202,7 +215,7 @@ page = st.sidebar.radio("Navigation", available_pages, label_visibility="collaps
                         save_database(df)
                         st.rerun()
 
-    # --- NEW SECTION: ANALYTICS DASHBOARD ---
+    # --- SECTION: ANALYTICS DASHBOARD ---
     st.divider()
     st.subheader("Data & Insights")
     
@@ -222,7 +235,7 @@ page = st.sidebar.radio("Navigation", available_pages, label_visibility="collaps
             played_games['Year'] = played_games['ReleaseDate'].astype(str).str[:4]
             yearly_avg = played_games.groupby('Year')['Base_Score'].mean().reset_index()
             fig2 = px.bar(yearly_avg, x='Year', y='Base_Score', title="Avg Score by Release Year", range_y=[0,10])
-            fig2.update_traces(marker_color='#FF4B4B') # Streamlit's native red accent
+            fig2.update_traces(marker_color='#FF4B4B') 
             fig2.update_layout(margin=dict(t=40, b=10, l=10, r=10))
             st.plotly_chart(fig2, use_container_width=True)
 
@@ -238,6 +251,27 @@ page = st.sidebar.radio("Navigation", available_pages, label_visibility="collaps
                 st.info("Score games with OpenCritic ratings to generate this chart.")
     else:
         st.info("Finish and score some games to unlock your analytics dashboard!")
+
+    # --- SECTION: KEY METRICS (MOVED TO BOTTOM) ---
+    st.write("")
+    st.subheader("At a Glance")
+    col_m1, col_m2, col_m3 = st.columns(3)
+    
+    with col_m1: 
+        st.metric("Completed Games", len(played_games))
+        
+    with col_m2:
+        avg_score = played_games['Base_Score'].mean() if not played_games.empty else 0
+        st.metric("Average Score", f"{avg_score:.1f}")
+        
+    with col_m3:
+        if not upcoming_all.empty:
+            upcoming_all['DateObj'] = pd.to_datetime(upcoming_all['ReleaseDate'], errors='coerce')
+            future_games = upcoming_all[upcoming_all['DateObj'] >= pd.Timestamp(datetime.date.today())]
+            next_game = future_games.sort_values(by='DateObj').iloc[0]['Title'] if not future_games.empty else "None Scheduled"
+            st.metric("Next Release", next_game)
+        else: 
+            st.metric("Next Release", "None Scheduled")
 
 # --- PAGE 2: RANKINGS ---
 elif page == "Rankings":
