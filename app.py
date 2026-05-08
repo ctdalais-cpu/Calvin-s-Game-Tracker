@@ -40,6 +40,20 @@ st.markdown("""
             border-color: #2D3748 !important;
             background-color: #1A1C23;
         }
+        
+        /* THE POSTER FIX: Forces uniform size and crops images to fit */
+        [data-testid="stImage"] img {
+            width: 100%;
+            height: 160px; /* Fixed height for the row */
+            object-fit: cover; /* This is the "magic" crop */
+            border-radius: 4px;
+        }
+
+        /* Shrink text for the 10-column view */
+        .small-text {
+            font-size: 0.8rem !important;
+            line-height: 1.2;
+        }
     </style>
 """, unsafe_allow_html=True)
 
@@ -304,65 +318,80 @@ if page == "Dashboard":
             st.metric("Next Release", "None Scheduled")
 
 # --- PAGE 2: RANKINGS ---
-# --- PAGE 2: RANKINGS (THE TROPHY ROOM) ---
+# --- PAGE 2: RANKINGS (COMPACT COLLECTION) ---
 elif page == "Rankings":
-    st.title("Rankings")
+    st.title("Collection")
     
     played_games = df[df['Status'] == 'Played'].copy()
     
     if not played_games.empty:
-        # Top Controls: Filter & Search
-        c_filter, c_search = st.columns([1, 2])
+        c_filter, c_search = st.columns([1, 3])
         with c_filter:
             av_years = sorted(played_games['ReleaseDate'].unique().tolist(), reverse=True)
-            sel_year = st.selectbox("Filter Year", ["All Time"] + av_years, label_visibility="collapsed")
+            sel_year = st.selectbox("Year", ["All Time"] + av_years, label_visibility="collapsed")
         with c_search:
-            search_query = st.text_input("Search Collection", placeholder="Search by title...", label_visibility="collapsed")
+            search_query = st.text_input("Search", placeholder="Search titles...", label_visibility="collapsed")
 
-        # Apply Filters
         if sel_year != "All Time":
             played_games = played_games[played_games['ReleaseDate'] == sel_year]
         if search_query:
             played_games = played_games[played_games['Title'].str.contains(search_query, case=False)]
 
-        # Sorting & Ranking
         rv = played_games.sort_values(by='Base_Score', ascending=False).copy()
         rv.insert(0, 'Rank', range(1, len(rv) + 1))
 
         if rv.empty:
-            st.info("No games match your search/filter.")
+            st.info("No games found.")
         else:
-            # THE GRID
-            cols_per_row = 5
+            # 10 COLUMNS PER ROW
+            cols_per_row = 10
             rows = [rv.iloc[i:i + cols_per_row] for i in range(0, len(rv), cols_per_row)]
 
             for row_data in rows:
                 cols = st.columns(cols_per_row)
                 for i, (idx, game) in enumerate(row_data.iterrows()):
                     with cols[i]:
-                        with st.container(border=True):
-                            # Cover Image
-                            if pd.notna(game['Cover_URL']) and game['Cover_URL'] != "":
-                                st.image(game['Cover_URL'], use_container_width=True)
-                            else:
-                                # Placeholder for games with no cover
-                                st.image("https://via.placeholder.com/150x200?text=No+Cover", use_container_width=True)
-                            
-                            # Rank & Title
-                            st.markdown(f"**#{game['Rank']} {game['Title']}**")
-                            st.caption(f"{game['Platform']} | {game['ReleaseDate']}")
-                            
-                            # Score Comparison Row
-                            s1, s2 = st.columns(2)
-                            s1.markdown(f"<span style='color:#9146FF; font-weight:bold; font-size:1.1rem;'>{game['Base_Score']:.1f}</span>", unsafe_allow_html=True)
-                            if game['OpenCritic'] > 0:
-                                diff = game['Base_Score'] - game['OpenCritic']
-                                color = "#48BB78" if diff >= 0 else "#F56565" # Green if you liked it more, Red if less
-                                s2.markdown(f"<span style='color:{color}; font-size:0.8rem;'>OC: {game['OpenCritic']}</span>", unsafe_allow_html=True)
-                            
-                            # Minimalist "View Details" button
-                            if st.button("Details", key=f"det_{idx}", use_container_width=True):
-                                st.session_state.inspect_game = game['Title']
+                        # We use a button that looks like a card
+                        if game['Cover_URL']:
+                            st.image(game['Cover_URL'])
+                        else:
+                            st.image("https://via.placeholder.com/150x200?text=No+Cover")
+                        
+                        # Compact Title & Rank
+                        st.markdown(f"<div class='small-text'><b>#{game['Rank']}</b> {game['Title']}</div>", unsafe_allow_html=True)
+                        
+                        # High-Contrast Score
+                        st.markdown(f"<div style='color:#9146FF; font-weight:bold; font-size:0.9rem;'>{game['Base_Score']:.1f}</div>", unsafe_allow_html=True)
+                        
+                        # Small Detail Trigger
+                        if st.button("🔎", key=f"det_{idx}", use_container_width=True, help="Click for Full Stats"):
+                            st.session_state.inspect_game = game['Title']
+            
+            # INSPECTOR (Same as before, stays beneath the grid)
+            if 'inspect_game' in st.session_state:
+                st.divider()
+                gd = rv[rv['Title'] == st.session_state.inspect_game].iloc[0]
+                
+                i_col1, i_col2 = st.columns([1, 4])
+                with i_col1:
+                    st.image(gd['Cover_URL'], use_container_width=True)
+                    if st.button("Close X", use_container_width=True):
+                        del st.session_state.inspect_game
+                        st.rerun()
+                with i_col2:
+                    st.header(gd['Title'])
+                    st.subheader(f"Rank #{gd['Rank']} | Score: {gd['Base_Score']:.1f}")
+                    
+                    m1, m2, m3, m4, m5, m6 = st.columns(6)
+                    m1.metric("Gameplay", gd['S_Gameplay'])
+                    m2.metric("Visuals", gd['S_Visuals'])
+                    m3.metric("Audio", gd['S_Audio'])
+                    m4.metric("Fun", gd['S_Fun'])
+                    m5.metric(gd['Bonus_1_Name'], gd['S_Bonus_1'])
+                    m6.metric(gd['Bonus_2_Name'], gd['S_Bonus_2'])
+
+    else:
+        st.info("Your collection is currently empty.")
 
             # THE MODAL-STYLE INSPECTOR (Appears if "Details" is clicked)
             if 'inspect_game' in st.session_state:
