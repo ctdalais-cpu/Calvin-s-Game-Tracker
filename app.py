@@ -86,29 +86,7 @@ elif user_pin != "":
 
 page = st.sidebar.radio("Navigation", available_pages, label_visibility="collapsed")
 
-# --- PAGE 1: DASHBOARD ---
-if page == "Dashboard":
-    st.title("Dashboard")
-    played_games = df[df['Status'] == 'Played']
-    upcoming_all = df[df['Status'] == 'Upcoming'].copy()
-    
-    col_m1, col_m2, col_m3 = st.columns(3)
-    with col_m1: st.metric("Completed Games", len(played_games))
-    with col_m2:
-        avg_score = played_games['Base_Score'].mean() if not played_games.empty else 0
-        st.metric("Average Score", f"{avg_score:.1f}")
-    with col_m3:
-        if not upcoming_all.empty:
-            upcoming_all['DateObj'] = pd.to_datetime(upcoming_all['ReleaseDate'], errors='coerce')
-            future_games = upcoming_all[upcoming_all['DateObj'] >= pd.Timestamp(datetime.date.today())]
-            next_game = future_games.sort_values(by='DateObj').iloc[0]['Title'] if not future_games.empty else "None Scheduled"
-            st.metric("Next Release", next_game)
-        else: st.metric("Next Release", "None Scheduled")
-            
-    st.divider()
-    dash_left, dash_right = st.columns([1.2, 1], gap="large")
-    
-    with dash_left:
+
         # SECTION: CURRENTLY PLAYING
         st.subheader("Currently Playing")
         playing_games = df[df['Status'] == 'Playing']
