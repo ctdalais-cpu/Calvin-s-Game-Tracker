@@ -264,7 +264,7 @@ if page == "Dashboard":
         with c_chart2:
             played_games['Year'] = played_games['ReleaseDate'].astype(str).str[:4]
             yearly_avg = played_games.groupby('Year')['Base_Score'].mean().reset_index()
-            fig2 = px.bar(yearly_avg, x='Year', y='Base Score', title="Avg Score by Release Year", range_y=[0,10], template="plotly_dark")
+            fig2 = px.bar(yearly_avg, x='Year', y='Base_Score', title="Avg Score by Release Year", range_y=[0,10], template="plotly_dark")
             fig2.update_traces(marker_color='#9146FF') 
             fig2.update_layout(margin=dict(t=40, b=10, l=10, r=10), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
             st.plotly_chart(fig2, use_container_width=True)
@@ -272,7 +272,7 @@ if page == "Dashboard":
         with c_chart3:
             valid_oc = played_games[played_games['OpenCritic'] > 0]
             if not valid_oc.empty:
-                fig3 = px.scatter(valid_oc, x='OpenCritic', y='Base Score', hover_name='Title', title="My Score vs Critics", labels={'OpenCritic': 'Critic Score', 'Base_Score': 'My Score'}, range_x=[0,100], range_y=[0,10], template="plotly_dark")
+                fig3 = px.scatter(valid_oc, x='OpenCritic', y='Base_Score', hover_name='Title', title="My Score vs Critics", labels={'OpenCritic': 'Critic Score', 'Base Score': 'My Score'}, range_x=[0,100], range_y=[0,10], template="plotly_dark")
                 fig3.add_shape(type="line", x0=0, y0=0, x1=100, y1=10, line=dict(color="gray", dash="dash"))
                 fig3.update_traces(marker=dict(color='#9146FF', size=10))
                 fig3.update_layout(margin=dict(t=40, b=10, l=10, r=10), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
