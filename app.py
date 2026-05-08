@@ -27,20 +27,19 @@ st.markdown("""
             backdrop-filter: blur(10px);
             border-radius: 15px;
             border: 1px solid rgba(255, 255, 255, 0.1) !important;
-            padding: 20px;
+            padding: 15px;
         }
 
         /* Metrics Styling */
-        div[data-testid="stMetricValue"] { font-size: 2.2rem; font-weight: 700; color: #9146FF; }
+        div[data-testid="stMetricValue"] { font-size: 1.8rem; font-weight: 700; color: #9146FF; }
         
         /* Image Styling */
         img {
-            border-radius: 8px;
+            border-radius: 6px;
             transition: 0.3s ease;
         }
         img:hover {
-            transform: scale(1.03);
-            box-shadow: 0 10px 25px rgba(145, 70, 255, 0.3);
+            transform: scale(1.05);
         }
 
         /* Hide Streamlit Branding */
@@ -52,14 +51,14 @@ st.markdown("""
 
 # --- 3. MASTER CONFIG ---
 GENRE_CONFIG = {
-    "Action": [{"name": "Level Design", "desc": ""}, {"name": "Combat Feel", "desc": ""}],
-    "RPG": [{"name": "Narrative", "desc": ""}, {"name": "Characters", "desc": ""}],
-    "Roguelite": [{"name": "Replayability", "desc": ""}, {"name": "Clarity", "desc": ""}],
-    "Online Multiplayer": [{"name": "Balance", "desc": ""}, {"name": "Community", "desc": ""}],
-    "Horror": [{"name": "Atmosphere", "desc": ""}, {"name": "Tension", "desc": ""}],
-    "Puzzle": [{"name": "Ingenuity", "desc": ""}, {"name": "Clarity", "desc": ""}],
-    "Adventure": [{"name": "Exploration", "desc": ""}, {"name": "World-Building", "desc": ""}],
-    "Strategy": [{"name": "Tactical Depth", "desc": ""}, {"name": "UI / UX", "desc": ""}]
+    "Action": [{"name": "Level Design"}, {"name": "Combat Feel"}],
+    "RPG": [{"name": "Narrative"}, {"name": "Characters"}],
+    "Roguelite": [{"name": "Replayability"}, {"name": "Clarity"}],
+    "Online Multiplayer": [{"name": "Balance"}, {"name": "Community"}],
+    "Horror": [{"name": "Atmosphere"}, {"name": "Tension"}],
+    "Puzzle": [{"name": "Ingenuity"}, {"name": "Clarity"}],
+    "Adventure": [{"name": "Exploration"}, {"name": "World-Building"}],
+    "Strategy": [{"name": "Tactical Depth"}, {"name": "UI / UX"}]
 }
 
 MASTER_COLUMNS = [
@@ -77,9 +76,6 @@ records = sheet.get_all_records()
 if records:
     df = pd.DataFrame(records)
     df['ReleaseDate'] = df['ReleaseDate'].astype(str)
-    for col in MASTER_COLUMNS:
-        if col not in df.columns:
-            df[col] = 0 if 'Score' in col or 'Elo' in col else ""
 else:
     df = pd.DataFrame(columns=MASTER_COLUMNS)
 
@@ -109,8 +105,6 @@ if st.session_state.admin_pin_input == ADMIN_PIN:
     available_pages.extend(["Add Game", "The Arena", "Edit Database"])
 
 page = st.sidebar.radio("Navigation", available_pages)
-st.sidebar.markdown("<br>" * 10, unsafe_allow_html=True)
-st.sidebar.text_input("Admin Access", type="password", key="admin_pin_input")
 
 # --- 6. PAGE: DASHBOARD ---
 if page == "Dashboard":
@@ -119,42 +113,45 @@ if page == "Dashboard":
     played_games = df[df['Status'] == 'Played']
     upcoming_all = df[df['Status'] == 'Upcoming'].copy()
     
-    dash_left, dash_right = st.columns([1.2, 1], gap="large")
+    dash_left, dash_right = st.columns([1, 1], gap="large")
     
     with dash_left:
         st.subheader("⚡ Currently Playing")
         playing_games = df[df['Status'] == 'Playing']
         
         if 'scoring_game' in st.session_state and st.session_state.admin_pin_input == ADMIN_PIN:
-            # Scoring Form Logic (Original Functionality restored)
+            # Scoring Form
             finish_target = st.session_state.scoring_game
-            target_data = playing_games[playing_games['Title'] == finish_target].iloc[0]
-            st.markdown(f"**Scoring:** {finish_target}")
-            if st.button("Back"): 
-                del st.session_state.scoring_game; st.rerun()
+            st.markdown(f"**Finalizing:** {finish_target}")
+            if st.button("Cancel"): del st.session_state.scoring_game; st.rerun()
             
             with st.form("score_active"):
-                g_play = st.slider("Gameplay", 1.0, 10.0, 5.0, 0.1)
-                vis = st.slider("Visuals", 1.0, 10.0, 5.0, 0.1)
-                aud = st.slider("Audio", 1.0, 10.0, 5.0, 0.1)
-                fun = st.slider("Fun Factor", 1.0, 10.0, 5.0, 0.1)
-                if st.form_submit_button("Submit Score"):
-                    base_score = round((g_play*2) + (vis*2) + (aud*2) + (fun*2) + 10, 1) # Simplified for space
-                    df.loc[df['Title'] == finish_target, ['Status', 'Base_Score', 'Elo_Rating']] = ['Played', base_score, base_score*15]
+                g_play = st.slider("Gameplay", 1.0, 10.0, 7.0)
+                vis = st.slider("Visuals", 1.0, 10.0, 7.0)
+                aud = st.slider("Audio", 1.0, 10.0, 7.0)
+                fun = st.slider("Fun", 1.0, 10.0, 7.0)
+                if st.form_submit_button("Score Game"):
+                    final_score = round((g_play + vis + aud + fun) * 2.5, 1)
+                    df.loc[df['Title'] == finish_target, ['Status', 'Base_Score', 'Elo_Rating']] = ['Played', final_score, final_score*15]
                     save_database(df); del st.session_state.scoring_game; st.rerun()
         else:
             if not playing_games.empty:
                 for idx, row in playing_games.iterrows():
                     with st.container(border=True):
-                        c1, c2 = st.columns([3, 1])
-                        c1.markdown(f"**{row['Title']}**  \n`{row['Platform']}`")
-                        if st.session_state.admin_pin_input == ADMIN_PIN:
-                            if c2.button("Finish", key=f"fin_{idx}"):
-                                st.session_state.scoring_game = row['Title']; st.rerun()
+                        # Row-based layout: Thumbnail - Info - Button
+                        c1, c2, c3 = st.columns([0.6, 2, 1])
+                        with c1:
+                            if row['Cover_URL']: st.image(row['Cover_URL'], width=60)
+                        with c2:
+                            st.markdown(f"**{row['Title']}**  \n`{row['Platform']}`")
+                        with c3:
+                            if st.session_state.admin_pin_input == ADMIN_PIN:
+                                if st.button("Finish", key=f"fin_{idx}", use_container_width=True):
+                                    st.session_state.scoring_game = row['Title']; st.rerun()
             else: st.info("No active games.")
 
         st.write("")
-        st.subheader("📚 The Backlog")
+        st.subheader("📚 Backlog")
         backlog_games = df[df['Status'] == 'Backlog']
         if not backlog_games.empty:
             for idx, row in backlog_games.iterrows():
@@ -162,7 +159,7 @@ if page == "Dashboard":
                     c1, c2 = st.columns([3, 1])
                     c1.write(f"**{row['Title']}** ({row['Platform']})")
                     if st.session_state.admin_pin_input == ADMIN_PIN:
-                        if c2.button("Play", key=f"play_{idx}"):
+                        if c2.button("Play", key=f"p_{idx}"):
                             df.loc[df['Title'] == row['Title'], 'Status'] = 'Playing'
                             save_database(df); st.rerun()
 
@@ -172,47 +169,41 @@ if page == "Dashboard":
             upcoming_all['DateObj'] = pd.to_datetime(upcoming_all['ReleaseDate'], errors='coerce')
             upcoming_all = upcoming_all.sort_values('DateObj')
             
-            grid_cols = st.columns(3)
-            for i, (_, row) in enumerate(upcoming_all.head(6).iterrows()):
-                with grid_cols[i % 3]:
+            # 4 columns for a tight grid
+            grid_cols = st.columns(4)
+            for i, (_, row) in enumerate(upcoming_all.head(8).iterrows()):
+                with grid_cols[i % 4]:
                     with st.container(border=True):
                         if row['Cover_URL']: st.image(row['Cover_URL'], use_container_width=True)
-                        st.markdown(f"<p style='font-size:0.8rem; font-weight:bold; margin-bottom:0;'>{row['Title']}</p>", unsafe_allow_html=True)
-                        st.caption(row['ReleaseDate'])
-        else: st.info("No upcoming games tracked.")
+                        st.markdown(f"<p style='font-size:0.75rem; font-weight:bold; margin-bottom:0;'>{row['Title']}</p>", unsafe_allow_html=True)
+                        st.markdown(f"<p style='font-size:0.65rem; color: #9146FF; margin-top:0;'>{row['ReleaseDate']}</p>", unsafe_allow_html=True)
+        else: st.info("Clear skies ahead.")
 
-    # --- Analytics Section (Restored to 3 Charts) ---
+    # --- Analytics & Stats ---
     st.divider()
-    st.subheader("📊 Data & Insights")
     if not played_games.empty:
         c1, c2, c3 = st.columns(3)
         with c1:
-            fig1 = px.pie(played_games, names='Genre', hole=0.4, title="Genre Split", template="plotly_dark")
+            fig1 = px.pie(played_games, names='Genre', hole=0.4, title="Genre Split", height=300, template="plotly_dark")
             fig1.update_layout(margin=dict(t=30, b=0, l=0, r=0), paper_bgcolor='rgba(0,0,0,0)')
             st.plotly_chart(fig1, use_container_width=True)
         with c2:
             played_games['Year'] = played_games['ReleaseDate'].astype(str).str[:4]
             yearly = played_games.groupby('Year')['Base_Score'].mean().reset_index()
-            fig2 = px.bar(yearly, x='Year', y='Base_Score', title="Avg Score by Year", template="plotly_dark")
+            fig2 = px.bar(yearly, x='Year', y='Base_Score', title="Avg Score/Year", height=300, template="plotly_dark")
             fig2.update_traces(marker_color='#9146FF')
             fig2.update_layout(margin=dict(t=30, b=0, l=0, r=0), paper_bgcolor='rgba(0,0,0,0)')
             st.plotly_chart(fig2, use_container_width=True)
         with c3:
-            fig3 = px.scatter(played_games, x='OpenCritic', y='Base_Score', hover_name='Title', title="My Score vs Critics", template="plotly_dark")
+            fig3 = px.scatter(played_games, x='OpenCritic', y='Base_Score', hover_name='Title', title="Me vs Critics", height=300, template="plotly_dark")
             fig3.update_layout(margin=dict(t=30, b=0, l=0, r=0), paper_bgcolor='rgba(0,0,0,0)')
             st.plotly_chart(fig3, use_container_width=True)
 
-    # --- Stats Section (Restored to Bottom) ---
-    st.write("")
-    st.subheader("📍 At a Glance")
+    st.subheader("📍 Stats")
     m1, m2, m3 = st.columns(3)
-    with m1: st.metric("Completed", len(played_games))
-    with m2: 
-        avg = played_games['Base_Score'].mean() if not played_games.empty else 0
-        st.metric("Average Score", f"{avg:.1f}")
-    with m3:
-        next_val = upcoming_all.sort_values('DateObj').iloc[0]['Title'] if not upcoming_all.empty else "N/A"
-        st.metric("Next Up", next_val)
+    m1.metric("Completed", len(played_games))
+    m2.metric("Average Score", f"{played_games['Base_Score'].mean():.1f}" if not played_games.empty else "0")
+    m3.metric("Next Up", upcoming_all.iloc[0]['Title'] if not upcoming_all.empty else "N/A")
 
 # --- 7. PAGE: RANKINGS ---
 elif page == "Rankings":
@@ -220,38 +211,35 @@ elif page == "Rankings":
     played = df[df['Status'] == 'Played'].sort_values('Base_Score', ascending=False)
     
     if not played.empty:
-        # Top 3 Podium Cards
         top_3 = played.head(3)
         cols = st.columns(3)
-        medals = ["🥇", "🥈", "🥉"]
         for i, (_, row) in enumerate(top_3.iterrows()):
             with cols[i]:
                 with st.container(border=True):
-                    st.markdown(f"<h2 style='text-align:center;'>{medals[i]}</h2>", unsafe_allow_html=True)
                     if row['Cover_URL']: st.image(row['Cover_URL'], use_container_width=True)
                     st.markdown(f"<p style='text-align:center; font-weight:bold;'>{row['Title']}</p>", unsafe_allow_html=True)
                     st.markdown(f"<h3 style='text-align:center; color:#9146FF;'>{row['Base_Score']}</h3>", unsafe_allow_html=True)
-        
         st.divider()
-        st.dataframe(played[['Title', 'Platform', 'Base_Score', 'OpenCritic']], 
-                     use_container_width=True, hide_index=True,
-                     column_config={"Base_Score": st.column_config.ProgressColumn("Score", min_value=0, max_value=100)})
+        st.dataframe(played[['Title', 'Platform', 'Base_Score', 'OpenCritic']], use_container_width=True, hide_index=True)
 
-# --- 8. ADMIN PAGES (Keep originals) ---
+# --- 8. ADMIN TOOLS ---
 elif page == "Add Game":
     st.title("Add Game")
     with st.form("add"):
         t = st.text_input("Title")
         p = st.text_input("Platform")
-        st.caption("Standard fields. IGDB will fetch art on save.")
         if st.form_submit_button("Save"):
             art = fetch_cover_art(t)
-            new_data = {col: 0 if 'Score' in col else "" for col in MASTER_COLUMNS}
-            new_data.update({'Title': t, 'Platform': p, 'Status': 'Backlog', 'Cover_URL': art, 'ReleaseDate': str(datetime.date.today())})
-            df = pd.concat([df, pd.DataFrame([new_data])], ignore_index=True)
+            new_row = {col: 0 if 'Score' in col else "" for col in MASTER_COLUMNS}
+            new_row.update({'Title': t, 'Platform': p, 'Status': 'Backlog', 'Cover_URL': art, 'ReleaseDate': str(datetime.date.today())})
+            df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
             save_database(df); st.rerun()
 
 elif page == "Edit Database":
     st.title("Database Edit")
     ed = st.data_editor(df, num_rows="dynamic")
     if st.button("Save Changes"): save_database(ed); st.success("Saved!")
+
+# Always keep the Admin PIN input at bottom of sidebar
+st.sidebar.divider()
+st.sidebar.text_input("Admin Access", type="password", key="admin_pin_input")
