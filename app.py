@@ -74,7 +74,8 @@ def fetch_cover_art(title):
     except: return ""
 
 # --- SIDEBAR NAVIGATION WITH ADMIN BOUNCER ---
-st.sidebar.title("Game Tracker")
+st.sidebar.title("🎮 Game Tracker")
+st.sidebar.divider()
 
 # Only show the public pages by default
 available_pages = ["Dashboard", "Rankings"]
@@ -141,8 +142,12 @@ if page == "Dashboard":
                 with st.form("score_active"):
                     new_oc = st.number_input("OpenCritic", 0, 100, int(target_data['OpenCritic']))
                     c1, c2 = st.columns(2)
-                    with c1: g_play, vis = st.slider("Gameplay", 1.0, 10.0, 5.0, 0.1), st.slider("Visuals", 1.0, 10.0, 5.0, 0.1)
-                    with c2: aud, fun = st.slider("Audio", 1.0, 10.0, 5.0, 0.1), st.slider("Fun Factor", 1.0, 10.0, 5.0, 0.1)
+                    with c1: 
+                        g_play = st.slider("Gameplay", 1.0, 10.0, 5.0, 0.1)
+                        vis = st.slider("Visuals", 1.0, 10.0, 5.0, 0.1)
+                    with c2: 
+                        aud = st.slider("Audio", 1.0, 10.0, 5.0, 0.1)
+                        fun = st.slider("Fun Factor", 1.0, 10.0, 5.0, 0.1)
                     c3, c4 = st.columns(2)
                     with c3: b1_val = st.slider(b1["name"], 1.0, 10.0, 5.0, 0.1)
                     with c4: b2_val = st.slider(b2["name"], 1.0, 10.0, 5.0, 0.1)
@@ -235,16 +240,28 @@ elif page == "Rankings":
                     with cinfo:
                         st.markdown(f"**{sq}**")
                         st.caption(f"Genre: {gd['Genre']}")
+                    
                     m1, m2 = st.columns(2)
-                    if gd['OpenCritic'] > 0: m1.metric("My Score", f"{gd['Base_Score']:.1f}", f"{gd['Base_Score'] - gd['OpenCritic']:+.1f} vs Critics", delta_color="normal"), m2.metric("OpenCritic", f"{gd['OpenCritic']:.0f}")
-                    else: m1.metric("My Score", f"{gd['Base_Score']:.1f}"), m2.metric("OpenCritic", "N/A")
+                    if gd['OpenCritic'] > 0: 
+                        m1.metric("My Score", f"{gd['Base_Score']:.1f}", f"{gd['Base_Score'] - gd['OpenCritic']:+.1f} vs Critics", delta_color="normal")
+                        m2.metric("OpenCritic", f"{gd['OpenCritic']:.0f}")
+                    else: 
+                        m1.metric("My Score", f"{gd['Base_Score']:.1f}")
+                        m2.metric("OpenCritic", "N/A")
+                        
                     st.divider()
+                    
                     c1, c2 = st.columns(2)
-                    c1.metric("Gameplay", f"{gd['S_Gameplay']}/10"), c2.metric("Visuals", f"{gd['S_Visuals']}/10")
+                    c1.metric("Gameplay", f"{gd['S_Gameplay']}/10")
+                    c2.metric("Visuals", f"{gd['S_Visuals']}/10")
+                    
                     c3, c4 = st.columns(2)
-                    c3.metric("Audio", f"{gd['S_Audio']}/10"), c4.metric("Fun", f"{gd['S_Fun']}/10")
+                    c3.metric("Audio", f"{gd['S_Audio']}/10")
+                    c4.metric("Fun", f"{gd['S_Fun']}/10")
+                    
                     c5, c6 = st.columns(2)
-                    c5.metric(str(gd['Bonus_1_Name']), f"{gd['S_Bonus_1']}/10"), c6.metric(str(gd['Bonus_2_Name']), f"{gd['S_Bonus_2']}/10")
+                    c5.metric(str(gd['Bonus_1_Name']), f"{gd['S_Bonus_1']}/10")
+                    c6.metric(str(gd['Bonus_2_Name']), f"{gd['S_Bonus_2']}/10")
     else: st.info("You haven't scored any games yet.")
 
     st.write("")
@@ -274,8 +291,12 @@ elif page == "Add Game" and user_pin == ADMIN_PIN:
             with c_oc: new_oc = st.number_input("OpenCritic Score", 0, 100, 0)
             st.markdown("**Core Elements**")
             c1, c2 = st.columns(2)
-            with c1: gameplay, visuals = st.slider("Gameplay", 1.0, 10.0, 5.0, 0.1), st.slider("Visuals", 1.0, 10.0, 5.0, 0.1)
-            with c2: audio, fun = st.slider("Audio", 1.0, 10.0, 5.0, 0.1), st.slider("Fun Factor", 1.0, 10.0, 5.0, 0.1)
+            with c1: 
+                gameplay = st.slider("Gameplay", 1.0, 10.0, 5.0, 0.1)
+                visuals = st.slider("Visuals", 1.0, 10.0, 5.0, 0.1)
+            with c2: 
+                audio = st.slider("Audio", 1.0, 10.0, 5.0, 0.1)
+                fun = st.slider("Fun Factor", 1.0, 10.0, 5.0, 0.1)
             st.markdown(f"**Genre Specific: {genre}**")
             c3, c4 = st.columns(2)
             with c3: bonus1 = st.slider(b1_data["name"], 1.0, 10.0, 5.0, 0.1)
@@ -345,8 +366,12 @@ elif page == "Edit Database" and user_pin == ADMIN_PIN:
                 if ns == "Played":
                     with c_oc: eoc = st.number_input("OpenCritic", 0, 100, int(td['OpenCritic']))
                     c1, c2 = st.columns(2)
-                    with c1: eg, ev = st.slider("Gameplay", 1.0, 10.0, float(td['S_Gameplay']) if td['S_Gameplay']>0 else 5.0, 0.1), st.slider("Visuals", 1.0, 10.0, float(td['S_Visuals']) if td['S_Visuals']>0 else 5.0, 0.1)
-                    with c2: ea, ef = st.slider("Audio", 1.0, 10.0, float(td['S_Audio']) if td['S_Audio']>0 else 5.0, 0.1), st.slider("Fun", 1.0, 10.0, float(td['S_Fun']) if td['S_Fun']>0 else 5.0, 0.1)
+                    with c1: 
+                        eg = st.slider("Gameplay", 1.0, 10.0, float(td['S_Gameplay']) if td['S_Gameplay']>0 else 5.0, 0.1)
+                        ev = st.slider("Visuals", 1.0, 10.0, float(td['S_Visuals']) if td['S_Visuals']>0 else 5.0, 0.1)
+                    with c2: 
+                        ea = st.slider("Audio", 1.0, 10.0, float(td['S_Audio']) if td['S_Audio']>0 else 5.0, 0.1)
+                        ef = st.slider("Fun", 1.0, 10.0, float(td['S_Fun']) if td['S_Fun']>0 else 5.0, 0.1)
                     c3, c4 = st.columns(2)
                     with c3: eb1 = st.slider(b1["name"], 1.0, 10.0, float(td['S_Bonus_1']) if td['Bonus_1_Name']==b1['name'] else 5.0, 0.1)
                     with c4: eb2 = st.slider(b2["name"], 1.0, 10.0, float(td['S_Bonus_2']) if td['Bonus_2_Name']==b2['name'] else 5.0, 0.1)
