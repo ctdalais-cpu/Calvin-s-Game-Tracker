@@ -21,39 +21,23 @@ st.markdown("""
         footer {visibility: hidden;}
         header {visibility: hidden;}
         
-        /* Dashboard Metric Sizing */
-        div[data-testid="stMetricValue"] { font-size: 2.2rem; font-weight: 700; }
-        div[data-testid="stSidebarNav"] { padding-top: 2rem; }
-        
-        /* Subtly round image corners and add a hover lift effect */
-        img {
-            border-radius: 8px;
-            transition: transform 0.2s ease-in-out;
-        }
-        img:hover {
-            transform: scale(1.02);
-        }
-        
-        /* Soften the container borders */
-        div[data-testid="stVerticalBlock"] > div[style*="border"] {
-            border-radius: 10px;
-            border-color: #2D3748 !important;
-            background-color: #1A1C23;
-        }
-        
-        /* THE POSTER FIX: Forces uniform size and crops images to fit */
+        /* THE IMAGE FIXED-RATIO CROP */
         [data-testid="stImage"] img {
             width: 100%;
-            height: 160px; /* Fixed height for the row */
-            object-fit: cover; /* This is the "magic" crop */
-            border-radius: 4px;
+            height: 280px; /* Fixed height for 5-column layout */
+            object-fit: cover; /* Crops image to fill the box without stretching */
+            border-radius: 8px 8px 0 0;
         }
 
-        /* Shrink text for the 10-column view */
-        .small-text {
-            font-size: 0.8rem !important;
-            line-height: 1.2;
+        /* Standardize Card Height */
+        [data-testid="stVerticalBlock"] > div[style*="border"] {
+            min-height: 440px; /* Ensures all cards stay the same length */
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
         }
+
+        div[data-testid="stMetricValue"] { font-size: 2.2rem; font-weight: 700; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -317,22 +301,22 @@ if page == "Dashboard":
         else: 
             st.metric("Next Release", "None Scheduled")
 
-# --- PAGE 2: RANKINGS (COMPACT COLLECTION) ---
+# --- PAGE 2: RANKINGS (THE GALLERY) ---
 elif page == "Rankings":
     st.title("Collection")
     
     played_games = df[df['Status'] == 'Played'].copy()
     
-    # 1. CHECK IF GAMES EXIST
     if not played_games.empty:
+        # Search and Filter bar
         c_filter, c_search = st.columns([1, 3])
         with c_filter:
             av_years = sorted(played_games['ReleaseDate'].unique().tolist(), reverse=True)
             sel_year = st.selectbox("Year", ["All Time"] + av_years, label_visibility="collapsed")
         with c_search:
-            search_query = st.text_input("Search", placeholder="Search titles...", label_visibility="collapsed")
+            search_query = st.text_input("Search", placeholder="Search your collection...", label_visibility="collapsed")
 
-        # 2. APPLY FILTERS
+        # Apply Filters
         if sel_year != "All Time":
             played_games = played_games[played_games['ReleaseDate'] == sel_year]
         if search_query:
@@ -344,40 +328,43 @@ elif page == "Rankings":
         if rv.empty:
             st.info("No games found.")
         else:
-            # 3. RENDER THE 10-COLUMN GRID
-            cols_per_row = 10
+            # 5 COLUMNS PER ROW (Visual Sweet Spot)
+            cols_per_row = 5
             rows = [rv.iloc[i:i + cols_per_row] for i in range(0, len(rv), cols_per_row)]
 
             for row_data in rows:
                 cols = st.columns(cols_per_row)
                 for i, (idx, game) in enumerate(row_data.iterrows()):
                     with cols[i]:
-                        if game['Cover_URL']:
-                            st.image(game['Cover_URL'])
-                        else:
-                            st.image("https://via.placeholder.com/150x200?text=No+Cover")
-                        
-                        st.markdown(f"<div class='small-text'><b>#{game['Rank']}</b> {game['Title']}</div>", unsafe_allow_html=True)
-                        st.markdown(f"<div style='color:#9146FF; font-weight:bold; font-size:0.9rem;'>{game['Base_Score']:.1f}</div>", unsafe_allow_html=True)
-                        
-                        if st.button("🔎", key=f"det_{idx}", use_container_width=True):
-                            st.session_state.inspect_game = game['Title']
+                        with st.container(border=True):
+                            if game['Cover_URL']:
+                                st.image(game['Cover_URL'])
+                            else:
+                                st.image("https://via.placeholder.com/200x280?text=No+Cover")
+                            
+                            # Info Section
+                            st.markdown(f"**#{game['Rank']} {game['Title']}**")
+                            st.caption(f"{game['Platform']} | {game['ReleaseDate']}")
+                            
+                            # Score & Detail Trigger
+                            c_s1, c_s2 = st.columns([1, 1.2])
+                            c_s1.markdown(f"<h3 style='margin:0; color:#9146FF;'>{game['Base_Score']:.1f}</h3>", unsafe_allow_html=True)
+                            if c_s2.button("Details", key=f"det_{idx}", use_container_width=True):
+                                st.session_state.inspect_game = game['Title']
             
-            # 4. THE INSPECTOR (Only shows if a game is clicked)
+            # --- THE INSPECTOR ---
             if 'inspect_game' in st.session_state:
                 st.divider()
-                st.subheader(f"Deep Dive: {st.session_state.inspect_game}")
-                
-                # Check if the game is actually in our current (filtered) list
                 inspect_list = rv[rv['Title'] == st.session_state.inspect_game]
                 
                 if not inspect_list.empty:
                     gd = inspect_list.iloc[0]
+                    st.subheader(f"Deep Dive: {gd['Title']}")
                     
                     det_left, det_mid, det_right = st.columns([1, 1.5, 1.5])
                     with det_left:
                         st.image(gd['Cover_URL'], use_container_width=True)
-                        if st.button("Close Inspector", use_container_width=True):
+                        if st.button("Close Stats X", use_container_width=True):
                             del st.session_state.inspect_game
                             st.rerun()
                     with det_mid:
@@ -391,13 +378,12 @@ elif page == "Rankings":
                         st.write(f"**{gd['Bonus_1_Name']}:** {gd['S_Bonus_1']}/10")
                         st.write(f"**{gd['Bonus_2_Name']}:** {gd['S_Bonus_2']}/10")
                 else:
-                    # Clear it if the game was filtered out
                     del st.session_state.inspect_game
 
     else:
-        st.info("You haven't finished any games to rank yet! Go beat something.")
+        st.info("Your collection is currently empty.")
 
-    # 5. DNF GRAVEYARD (Always at bottom)
+    # DNF GRAVEYARD
     st.write("")
     with st.expander("View DNF Graveyard"):
         dnf_df = df[df['Status'] == 'DNF']
