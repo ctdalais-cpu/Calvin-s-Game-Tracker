@@ -13,7 +13,7 @@ ADMIN_PIN = st.secrets["ADMIN_PIN"]
 
 st.set_page_config(page_title="Game Tracker", layout="wide", initial_sidebar_state="expanded")
 
-# --- CUSTOM CSS: TRUE BOX ART AND CLEAN GRIDS ---
+# --- CUSTOM CSS: TRUE BOX ART AND PERFECT ALIGNMENT ---
 st.markdown("""
     <style>
         /* Hide Streamlit Branding */
@@ -28,22 +28,42 @@ st.markdown("""
         /* Force true Box Art aspect ratio (3:4) */
         div[data-testid="stImage"] img {
             aspect-ratio: 3 / 4; 
-            object-fit: cover; /* Trims edges cleanly if the source image is slightly off */
+            object-fit: cover;
             border-radius: 6px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.4); /* Adds depth without needing a container border */
+            box-shadow: 0 4px 6px rgba(0,0,0,0.4);
             transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
             width: 100%;
         }
         
-        /* Hover effect directly on the images */
         div[data-testid="stImage"] img:hover {
             transform: scale(1.03);
-            box-shadow: 0 6px 15px rgba(145, 70, 255, 0.4); /* Twitch purple glow */
+            box-shadow: 0 6px 15px rgba(145, 70, 255, 0.4);
         }
         
-        /* Tighten up the gap between the image and the text below it */
         div[data-testid="stImage"] {
-            margin-bottom: -10px; 
+            margin-bottom: -5px; 
+        }
+
+        /* TEXT TRUNCATION CLASSES FOR PERFECT ALIGNMENT */
+        .grid-title {
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-top: 0.5rem;
+            margin-bottom: 0.1rem;
+            width: 100%;
+            display: block;
+        }
+        .grid-caption {
+            font-size: 0.85rem;
+            color: rgba(250, 250, 250, 0.6);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-bottom: 0.5rem;
+            width: 100%;
+            display: block;
         }
     </style>
 """, unsafe_allow_html=True)
@@ -180,11 +200,10 @@ if page == "Dashboard":
                 play_cols = st.columns(4)
                 for idx, (_, row) in enumerate(playing_games.iterrows()):
                     with play_cols[idx % 4]:
-                        # Removed st.container, writing directly to the column for a cleaner look
                         if pd.notna(row['Cover_URL']) and row['Cover_URL'] != "": 
                             st.image(row['Cover_URL'], use_container_width=True)
-                        st.write(f"**{row['Title']}**")
-                        st.caption(f"{row['Platform']} • {row['ReleaseDate']}")
+                        st.markdown(f'<div class="grid-title">{row["Title"]}</div>', unsafe_allow_html=True)
+                        st.markdown(f'<div class="grid-caption">{row["Platform"]} &bull; {row["ReleaseDate"]}</div>', unsafe_allow_html=True)
                         if st.session_state.admin_pin_input == ADMIN_PIN:
                             if st.button("Finish", key=f"fin_{row['Title']}", use_container_width=True):
                                 st.session_state.scoring_game = row['Title']
@@ -202,8 +221,8 @@ if page == "Dashboard":
                 with back_cols[idx % 6]:
                     if pd.notna(row['Cover_URL']) and row['Cover_URL'] != "": 
                         st.image(row['Cover_URL'], use_container_width=True)
-                    st.write(f"**{row['Title']}**")
-                    st.caption(f"{row['Platform']}")
+                    st.markdown(f'<div class="grid-title">{row["Title"]}</div>', unsafe_allow_html=True)
+                    st.markdown(f'<div class="grid-caption">{row["Platform"]}</div>', unsafe_allow_html=True)
                     if st.session_state.admin_pin_input == ADMIN_PIN:
                         if st.button("Play", key=f"start_{row['Title']}", use_container_width=True):
                             df.loc[df['Title'] == row['Title'], 'Status'] = 'Playing'
@@ -226,8 +245,8 @@ if page == "Dashboard":
                     with up_cols[index % 4]: 
                         if pd.notna(row['Cover_URL']) and row['Cover_URL'] != "": 
                             st.image(row['Cover_URL'], use_container_width=True)
-                        st.write(f"**{row['Title']}**")
-                        st.caption(f"{row['ReleaseDate']} • {row['Platform']}")
+                        st.markdown(f'<div class="grid-title">{row["Title"]}</div>', unsafe_allow_html=True)
+                        st.markdown(f'<div class="grid-caption">{row["ReleaseDate"]} &bull; {row["Platform"]}</div>', unsafe_allow_html=True)
             elif view_mode == "Agenda":
                 upcoming_all['MonthYear'] = upcoming_all['DateObj'].dt.strftime('%B %Y').fillna('TBD')
                 for month, group in upcoming_all.groupby('MonthYear', sort=False):
@@ -321,7 +340,7 @@ elif page == "Rankings":
             
             c_left, c_right = st.columns([2, 1], gap="large")
             with c_left: 
-                # Top 10 Grid - Restored with all specific data
+                # Top 10 Grid - Truncated for alignment
                 st.subheader("Top 10 Rankings")
                 top_10 = rv.head(10)
                 t10_cols = st.columns(5)
@@ -330,8 +349,8 @@ elif page == "Rankings":
                         st.markdown(f"**#{row['Rank']}**")
                         if pd.notna(row['Cover_URL']) and row['Cover_URL'] != "": 
                             st.image(row['Cover_URL'], use_container_width=True)
-                        st.write(f"**{row['Title']}**")
-                        st.caption(f"{row['Platform']} • {row['ReleaseDate']}")
+                        st.markdown(f'<div class="grid-title">{row["Title"]}</div>', unsafe_allow_html=True)
+                        st.markdown(f'<div class="grid-caption">{row["Platform"]} &bull; {row["ReleaseDate"]}</div>', unsafe_allow_html=True)
                         st.write(f"⭐ **{row['Base_Score']}**")
                 
                 st.write("")
