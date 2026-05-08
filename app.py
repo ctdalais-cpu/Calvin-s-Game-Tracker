@@ -21,30 +21,32 @@ st.markdown("""
         footer {visibility: hidden;}
         header {visibility: hidden;}
         
-        /* Dashboard Metric Sizing */
-        div[data-testid="stMetricValue"] { font-size: 2.2rem; font-weight: 700; }
-        div[data-testid="stSidebarNav"] { padding-top: 2rem; }
-        
-        /* Force true Box Art aspect ratio (3:4) */
-        div[data-testid="stImage"] img {
-            aspect-ratio: 3 / 4; 
-            object-fit: cover; /* Trims edges cleanly if the source image is slightly off */
-            border-radius: 6px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.4); /* Adds depth without needing a container border */
-            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
-            width: 100%;
-        }
-        
-        /* Hover effect directly on the images */
-        div[data-testid="stImage"] img:hover {
-            transform: scale(1.03);
-            box-shadow: 0 6px 15px rgba(145, 70, 255, 0.4); /* Twitch purple glow */
-        }
-        
-        /* Tighten up the gap between the image and the text below it */
-        div[data-testid="stImage"] {
-            margin-bottom: -10px; 
-        }
+       /* 1. Target the 'Block' that holds columns and force it to stay a ROW */
+div[data-testid="stHorizontalBlock"] {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    width: 100% !important;
+}
+
+/* 2. Target the immediate children (the columns) */
+div[data-testid="stHorizontalBlock"] > div {
+    width: 48% !important;  /* This forces 2 columns */
+    flex: 1 1 48% !important;
+    min-width: 48% !important;
+}
+
+/* 3. This is the 'Silver Bullet': Streamlit adds a wrapper div inside columns 
+   that often has a hardcoded 'width: 100%'. We have to kill that too. */
+div[data-testid="column"] > div {
+    width: 100% !important;
+}
+
+/* 4. Ensure images don't overflow their new small homes */
+div[data-testid="stImage"] img {
+    max-width: 100% !important;
+    height: auto !important;
+}
     </style>
 """, unsafe_allow_html=True)
 
