@@ -300,59 +300,93 @@ if page == "Dashboard":
         else: 
             st.metric("Next Release", "None Scheduled")
 
-# --- PAGE 2: RANKINGS ---
+# --- PAGE 2: RANKINGS (THE TROPHY ROOM) ---
 elif page == "Rankings":
-    st.title("Overall Rankings")
+    st.title("Rankings")
+    
     played_games = df[df['Status'] == 'Played'].copy()
+    
     if not played_games.empty:
-        c_filter, _ = st.columns([1, 3])
+        # Top Controls: Filter & Search
+        c_filter, c_search = st.columns([1, 2])
         with c_filter:
             av_years = sorted(played_games['ReleaseDate'].unique().tolist(), reverse=True)
-            sel_year = st.selectbox("Filter by Release Year:", ["All Time"] + av_years, label_visibility="collapsed")
-        st.write("") 
-            
-        if sel_year != "All Time": played_games = played_games[played_games['ReleaseDate'] == sel_year]
-        if played_games.empty: st.info(f"No games found for {sel_year}.")
+            sel_year = st.selectbox("Filter Year", ["All Time"] + av_years, label_visibility="collapsed")
+        with c_search:
+            search_query = st.text_input("Search Collection", placeholder="Search by title...", label_visibility="collapsed")
+
+        # Apply Filters
+        if sel_year != "All Time":
+            played_games = played_games[played_games['ReleaseDate'] == sel_year]
+        if search_query:
+            played_games = played_games[played_games['Title'].str.contains(search_query, case=False)]
+
+        # Sorting & Ranking
+        rv = played_games.sort_values(by='Base_Score', ascending=False).copy()
+        rv.insert(0, 'Rank', range(1, len(rv) + 1))
+
+        if rv.empty:
+            st.info("No games match your search/filter.")
         else:
-            rv = played_games.sort_values(by='Base_Score', ascending=False).copy()
-            rv.insert(0, 'Rank', range(1, len(rv) + 1))
-            cl_table = rv[['Rank', 'Title', 'Platform', 'ReleaseDate', 'Base_Score', 'OpenCritic']].rename(columns={'ReleaseDate': 'Year', 'Base_Score': 'My Score', 'OpenCritic': 'Critic'})
-            c_left, c_right = st.columns([2, 1], gap="large")
-            with c_left: st.dataframe(cl_table, hide_index=True, use_container_width=True, column_config={"Rank": st.column_config.NumberColumn("Rank", width=50), "Title": st.column_config.TextColumn("Title", width="large")})
-            with c_right:
-                st.subheader("Inspector")
-                sq = st.selectbox("Deep dive breakdown:", ["-- Select a game --"] + rv['Title'].tolist(), label_visibility="collapsed")
-                if sq != "-- Select a game --":
-                    gd = rv[rv['Title'] == sq].iloc[0]
-                    ci, cinfo = st.columns([1, 3]) 
-                    with ci:
-                        if pd.notna(gd['Cover_URL']) and gd['Cover_URL'] != "": st.image(gd['Cover_URL'], use_container_width=True)
-                    with cinfo:
-                        st.markdown(f"**{sq}**")
-                        st.caption(f"Genre: {gd['Genre']}")
-                    
-                    m1, m2 = st.columns(2)
-                    if gd['OpenCritic'] > 0: 
-                        m1.metric("My Score", f"{gd['Base_Score']:.1f}", f"{gd['Base_Score'] - gd['OpenCritic']:+.1f} vs Critics", delta_color="normal")
-                        m2.metric("OpenCritic", f"{gd['OpenCritic']:.0f}")
-                    else: 
-                        m1.metric("My Score", f"{gd['Base_Score']:.1f}")
-                        m2.metric("OpenCritic", "N/A")
-                        
-                    st.divider()
-                    
-                    c1, c2 = st.columns(2)
-                    c1.metric("Gameplay", f"{gd['S_Gameplay']}/10")
-                    c2.metric("Visuals", f"{gd['S_Visuals']}/10")
-                    
-                    c3, c4 = st.columns(2)
-                    c3.metric("Audio", f"{gd['S_Audio']}/10")
-                    c4.metric("Fun", f"{gd['S_Fun']}/10")
-                    
-                    c5, c6 = st.columns(2)
-                    c5.metric(str(gd['Bonus_1_Name']), f"{gd['S_Bonus_1']}/10")
-                    c6.metric(str(gd['Bonus_2_Name']), f"{gd['S_Bonus_2']}/10")
-    else: st.info("You haven't scored any games yet.")
+            # THE GRID
+            cols_per_row = 5
+            rows = [rv.iloc[i:i + cols_per_row] for i in range(0, len(rv), cols_per_row)]
+
+            for row_data in rows:
+                cols = st.columns(cols_per_row)
+                for i, (idx, game) in enumerate(row_data.iterrows()):
+                    with cols[i]:
+                        with st.container(border=True):
+                            # Cover Image
+                            if pd.notna(game['Cover_URL']) and game['Cover_URL'] != "":
+                                st.image(game['Cover_URL'], use_container_width=True)
+                            else:
+                                # Placeholder for games with no cover
+                                st.image("https://via.placeholder.com/150x200?text=No+Cover", use_container_width=True)
+                            
+                            # Rank & Title
+                            st.markdown(f"**#{game['Rank']} {game['Title']}**")
+                            st.caption(f"{game['Platform']} | {game['ReleaseDate']}")
+                            
+                            # Score Comparison Row
+                            s1, s2 = st.columns(2)
+                            s1.markdown(f"<span style='color:#9146FF; font-weight:bold; font-size:1.1rem;'>{game['Base_Score']:.1f}</span>", unsafe_allow_html=True)
+                            if game['OpenCritic'] > 0:
+                                diff = game['Base_Score'] - game['OpenCritic']
+                                color = "#48BB78" if diff >= 0 else "#F56565" # Green if you liked it more, Red if less
+                                s2.markdown(f"<span style='color:{color}; font-size:0.8rem;'>OC: {game['OpenCritic']}</span>", unsafe_allow_html=True)
+                            
+                            # Minimalist "View Details" button
+                            if st.button("Details", key=f"det_{idx}", use_container_width=True):
+                                st.session_state.inspect_game = game['Title']
+
+            # THE MODAL-STYLE INSPECTOR (Appears if "Details" is clicked)
+            if 'inspect_game' in st.session_state:
+                st.divider()
+                st.subheader(f"Deep Dive: {st.session_state.inspect_game}")
+                gd = rv[rv['Title'] == st.session_state.inspect_game].iloc[0]
+                
+                # Close button
+                if st.button("Close Inspector"):
+                    del st.session_state.inspect_game
+                    st.rerun()
+
+                det_left, det_mid, det_right = st.columns([1, 1.5, 1.5])
+                with det_left:
+                    st.image(gd['Cover_URL'], use_container_width=True)
+                with det_mid:
+                    st.metric("Final Score", f"{gd['Base_Score']:.1f}")
+                    st.write(f"**Gameplay:** {gd['S_Gameplay']}/10")
+                    st.write(f"**Visuals:** {gd['S_Visuals']}/10")
+                    st.write(f"**Audio:** {gd['S_Audio']}/10")
+                with det_right:
+                    st.metric("Elo Rating", int(gd['Elo_Rating']))
+                    st.write(f"**Fun Factor:** {gd['S_Fun']}/10")
+                    st.write(f"**{gd['Bonus_1_Name']}:** {gd['S_Bonus_1']}/10")
+                    st.write(f"**{gd['Bonus_2_Name']}:** {gd['S_Bonus_2']}/10")
+
+    else:
+        st.info("You haven't finished any games to rank yet! Go beat something.")
 
     st.write("")
     with st.expander("View DNF Graveyard"):
