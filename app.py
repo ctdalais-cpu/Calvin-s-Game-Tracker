@@ -13,7 +13,7 @@ ADMIN_PIN = st.secrets["ADMIN_PIN"]
 
 st.set_page_config(page_title="Game Hub Pro", layout="wide", initial_sidebar_state="expanded")
 
-# --- 2. MASTER UI POLISH ---
+# --- 2. MASTER UI POLISH (UNIFORM GRID & CENTERING) ---
 st.markdown("""
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
@@ -24,15 +24,21 @@ st.markdown("""
             font-family: 'Inter', sans-serif;
         }
         
-        /* Unified Glass Cards */
+        /* Force Uniform Tiles */
         div[data-testid="stVerticalBlock"] > div[style*="border"] {
             background: rgba(255, 255, 255, 0.02) !important;
             backdrop-filter: blur(12px);
             border-radius: 10px;
             border: none !important;
-            padding: 10px !important;
+            padding: 12px !important;
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
             transition: all 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 320px; /* Locked Height */
+            max-height: 320px;
         }
 
         /* Standardized Box Art Ratio */
@@ -41,23 +47,22 @@ st.markdown("""
             aspect-ratio: 3 / 4;
             object-fit: cover;
             width: 100%;
+            max-width: 160px; /* Prevents oversized images */
         }
 
-        /* Clean Headers */
-        h2 { font-weight: 800 !important; letter-spacing: -1.5px !important; color: #FFFFFF !important; margin-bottom: 2rem !important; }
+        /* Centered Typography */
+        h2 { font-weight: 800 !important; letter-spacing: -1.5px !important; color: #FFFFFF !important; text-align: left; }
         h5 { 
             font-size: 0.7rem !important; font-weight: 800 !important; color: #94A3B8 !important; 
             letter-spacing: 2px; text-transform: uppercase; margin-bottom: 1rem !important;
             border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 5px;
         }
         
-        .game-title { font-size: 0.7rem !important; font-weight: 600; text-align: center; margin-top: 8px; color: #F8FAFC; line-height: 1.2; }
-        .game-sub { font-size: 0.6rem !important; text-align: center; color: #64748B; margin-bottom: 2px; }
-        .game-score { font-size: 0.9rem !important; font-weight: 800; text-align: center; color: #9146FF; margin-top: 0px; }
+        .game-title { font-size: 0.75rem !important; font-weight: 600; text-align: center; margin-top: 10px; color: #F8FAFC; line-height: 1.2; width: 100%; }
+        .game-sub { font-size: 0.65rem !important; text-align: center; color: #64748B; width: 100%; margin-bottom: 5px; }
+        .game-score { font-size: 1rem !important; font-weight: 800; text-align: center; color: #9146FF; margin-top: 2px; }
 
-        /* Hide Clutter */
         #MainMenu, footer, header {visibility: hidden;}
-        .block-container { padding-top: 2rem; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -70,7 +75,7 @@ sheet = gc.open("Game Tracker Database").sheet1
 records = sheet.get_all_records()
 if records:
     df = pd.DataFrame(records)
-    for col in ['Base_Score', 'OpenCritic', 'Elo_Rating']:
+    for col in ['Base_Score', 'OpenCritic', 'Elo_Rating', 'S_Gameplay', 'S_Visuals', 'S_Audio', 'S_Fun']:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
 else:
@@ -125,7 +130,7 @@ if page == "Dashboard":
                         if st.session_state.admin_pin_input == ADMIN_PIN:
                             if st.button("FINISH", key=f"fin_{idx}", use_container_width=True):
                                 st.session_state.scoring_game = row['Title']; st.rerun()
-        else: st.caption("No active sessions.")
+        else: st.caption("Nothing active.")
 
         st.write("<br>", unsafe_allow_html=True)
 
@@ -158,7 +163,7 @@ if page == "Dashboard":
     # Analytics Section (Footer)
     st.divider()
     if not played.empty:
-        st.markdown("<h5>Analytics</h5>", unsafe_allow_html=True)
+        st.markdown("<h5>Insights</h5>", unsafe_allow_html=True)
         c1, c2, c3 = st.columns(3)
         c_layout = dict(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color="white", size=10), margin=dict(t=30, b=10, l=10, r=10))
         with c1:
@@ -173,40 +178,46 @@ if page == "Dashboard":
             fig3 = px.scatter(played, x='OpenCritic', y='Base_Score', hover_name='Title', title="ME VS CRITICS", template="plotly_dark")
             fig3.update_traces(marker=dict(size=8, color='#9146FF')); fig3.update_layout(c_layout); st.plotly_chart(fig3, use_container_width=True)
 
-    m1, m2, m3, m4 = st.columns(4)
-    m1.metric("COMPLETED", len(played))
-    m2.metric("AVG SCORE", f"{played['Base_Score'].mean():.1f}" if not played.empty else "0")
-    m3.metric("BACKLOG", len(backlog))
-    m4.metric("NEXT UP", upcoming.iloc[0]['Title'] if not upcoming.empty else "N/A")
-
-# --- 6. PAGE: RANKINGS (CLEAN TOP 10 + TABLE) ---
+# --- 6. PAGE: RANKINGS (RESTORED INSPECTOR) ---
 elif page == "Rankings":
     st.markdown("<h2>HALL OF FAME</h2>", unsafe_allow_html=True)
     played_sorted = df[df['Status'] == 'Played'].sort_values('Base_Score', ascending=False)
     
     if not played_sorted.empty:
-        # A. Top 10 Visual Grid
+        # Inspector Detail View
+        with st.expander("🔍 Deep Dive Inspector"):
+            sq = st.selectbox("Select game to breakdown:", ["-- Choose --"] + played_sorted['Title'].tolist(), label_visibility="collapsed")
+            if sq != "-- Choose --":
+                gd = played_sorted[played_sorted['Title'] == sq].iloc[0]
+                ic1, ic2 = st.columns([1, 2])
+                with ic1:
+                    if gd['Cover_URL']: st.image(gd['Cover_URL'], width=200)
+                with ic2:
+                    st.markdown(f"### {sq}")
+                    st.write(f"**Platform:** {gd['Platform']} | **Genre:** {gd['Genre']}")
+                    m_c1, m_c2, m_c3 = st.columns(3)
+                    m_c1.metric("Final Score", gd['Base_Score'])
+                    m_c2.metric("Critics", gd['OpenCritic'])
+                    m_c3.metric("Fun Factor", f"{gd['S_Fun']}/10")
+                    st.progress(gd['Base_Score'] / 100)
+
+        # Top 10 Visual Grid
         st.markdown("<h5>The Top Ten</h5>", unsafe_allow_html=True)
         top_10 = played_sorted.head(10)
-        
-        r_grid = st.columns(5) # Two rows of 5
+        r_grid = st.columns(5) 
         for i, (_, row) in enumerate(top_10.iterrows()):
             with r_grid[i % 5]:
                 with st.container(border=True):
                     if row['Cover_URL']: st.image(row['Cover_URL'])
                     st.markdown(f"<p class='game-title'>{row['Title']}</p>", unsafe_allow_html=True)
                     st.markdown(f"<p class='game-score'>{row['Base_Score']}</p>", unsafe_allow_html=True)
-                    st.markdown(f"<p class='game-sub'>{row['Genre']}</p>", unsafe_allow_html=True)
         
-        st.write("<br><br>", unsafe_allow_html=True)
+        st.write("<br>", unsafe_allow_html=True)
         
-        # B. The Rest (Index 11 onwards)
         if len(played_sorted) > 10:
             st.markdown("<h5>The Rest of the Pack</h5>", unsafe_allow_html=True)
             rest_of_pack = played_sorted.iloc[10:]
             st.dataframe(rest_of_pack[['Title', 'Platform', 'Base_Score', 'OpenCritic', 'Genre']], use_container_width=True, hide_index=True)
-    else:
-        st.info("The Hall of Fame is currently empty. Score some games to see them here!")
 
 # --- 7. ADMIN ---
 elif page == "Add Game":
