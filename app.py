@@ -261,21 +261,24 @@ if page == "Dashboard":
             fig1.update_layout(margin=dict(t=40, b=10, l=10, r=10), showlegend=False, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
             st.plotly_chart(fig1, use_container_width=True)
           
-        with c_chart2:
+       with c_chart2:
             # Bar Chart: Avg Score by Year
             played_games['Year'] = played_games['ReleaseDate'].astype(str).str[:4]
             yearly_avg = played_games.groupby('Year')['Base_Score'].mean().reset_index()
             
-            # Use text_auto='.1f' to force the numbers into the data mapping
-            fig2 = px.bar(yearly_avg, x='Year', y='Base_Score', text_auto='.1f', 
-                          title="Avg Score by Release Year", range_y=[0,10], template="plotly_dark")
+            # We explicitly create a text column for Plotly to use
+            yearly_avg['Label'] = yearly_avg['Base_Score'].map(lambda x: f"<b>{x:.1f}</b>")
             
-            # STYLING: Force bold and force position
+            fig2 = px.bar(yearly_avg, x='Year', y='Base_Score', text='Label', 
+                          title="Avg Score by Year", range_y=[0,10.5], template="plotly_dark")
+            
             fig2.update_traces(
                 marker_color='#9146FF',
-                textfont=dict(size=16, color="white", family="Arial Black"), # Using a heavy font family
                 textposition='inside',
-                insidetextanchor='middle'
+                insidetextanchor='middle',
+                textfont=dict(size=14, color="white"),
+                hoverinfo='none', # This kills the ugly hover box
+                hovertemplate=None # This ensures no tooltip pops up at all
             )
             
             fig2.update_layout(
@@ -283,26 +286,28 @@ if page == "Dashboard":
                 paper_bgcolor='rgba(0,0,0,0)', 
                 plot_bgcolor='rgba(0,0,0,0)',
                 yaxis_visible=False,
-                # This is the secret: It forces the text to stay visible regardless of bar size
-                uniformtext_minsize=14, 
-                uniformtext_mode='show'
+                uniformtext_mode='show' # Force display
             )
-            st.plotly_chart(fig2, use_container_width=True)
+            st.plotly_chart(fig2, use_container_width=True, config={'displayModeBar': False})
 
         with c_chart3:
             # Horizontal Bar Chart: Avg Score by Genre
             genre_avg = played_games.groupby('Genre')['Base_Score'].mean().reset_index()
             genre_avg = genre_avg.sort_values(by='Base_Score', ascending=True) 
             
-            # Use text_auto='.1f' here too
-            fig3 = px.bar(genre_avg, x='Base_Score', y='Genre', text_auto='.1f', 
-                          orientation='h', title="Avg Score by Genre", range_x=[0,10], template="plotly_dark")
+            # Again, hard-coding the text labels
+            genre_avg['Label'] = genre_avg['Base_Score'].map(lambda x: f"<b>{x:.1f}</b>")
+            
+            fig3 = px.bar(genre_avg, x='Base_Score', y='Genre', text='Label', 
+                          orientation='h', title="Avg Score by Genre", range_x=[0,10.5], template="plotly_dark")
             
             fig3.update_traces(
                 marker_color='#9146FF',
-                textfont=dict(size=16, color="white", family="Arial Black"),
                 textposition='inside',
-                insidetextanchor='middle'
+                insidetextanchor='middle',
+                textfont=dict(size=14, color="white"),
+                hoverinfo='none', # Kills hover
+                hovertemplate=None
             )
             
             fig3.update_layout(
@@ -311,11 +316,9 @@ if page == "Dashboard":
                 yaxis_title=None,
                 paper_bgcolor='rgba(0,0,0,0)', 
                 plot_bgcolor='rgba(0,0,0,0)',
-                # Force visibility again
-                uniformtext_minsize=14, 
                 uniformtext_mode='show'
             )
-            st.plotly_chart(fig3, use_container_width=True)
+            st.plotly_chart(fig3, use_container_width=True, config={'displayModeBar': False})
     else:
         st.info("Finish and score some games to unlock your analytics dashboard!")
 
