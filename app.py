@@ -250,7 +250,7 @@ if page == "Dashboard":
     if len(played_games) > 0:
         c_chart1, c_chart2, c_chart3 = st.columns(3)
         
-      with c_chart1:
+        with c_chart1:
             genre_counts = played_games['Genre'].value_counts().reset_index()
             genre_counts.columns = ['Genre', 'Count']
             fig1 = px.pie(genre_counts, values='Count', names='Genre', title="Most Played Genres", hole=0.4, template="plotly_dark")
