@@ -16,6 +16,11 @@ st.markdown("""
     <style>
         div[data-testid="stMetricValue"] { font-size: 2rem; }
         div[data-testid="stSidebarNav"] { padding-top: 2rem; }
+        
+        /* HIDE STREAMLIT BRANDING */
+        #MainMenu {visibility: hidden;}
+        footer {visibility: hidden;}
+        header {visibility: hidden;}
     </style>
 """, unsafe_allow_html=True)
 
