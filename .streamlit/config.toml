@@ -1,11 +1,11 @@
 [theme]
-# A sleek, Twitch-inspired deep purple accent
-primaryColor = "#708090"
+# Electric Teal accent for high-energy interaction
+primaryColor = "#81E6D9"
 
-# Deep, professional dark mode backgrounds
-backgroundColor = "#708090"
-secondaryBackgroundColor = "#1A1C23"
+# Deep midnight and navy for a crisp, cool-toned dark mode
+backgroundColor = "#0F172A"
+secondaryBackgroundColor = "#1E293B"
 
-# Crisp, off-white text for readability
-textColor = "#E2E8F0"
-font = "sans serif"
+# High-contrast white-smoke for maximum legibility
+textColor = "#F8FAFC"
+font = "Inter, sans-serif"
