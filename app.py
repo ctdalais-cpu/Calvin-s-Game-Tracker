@@ -461,4 +461,77 @@ elif page == "Add Game" and st.session_state.admin_pin_input == ADMIN_PIN:
 elif page == "The Arena" and st.session_state.admin_pin_input == ADMIN_PIN:
     st.title("The Arena")
     pg = df[df['Status'] == 'Played']
-    if len(pg) < 2: st.
+    if len(pg) < 2: st.info("Score at least 2 games to unlock the Arena.")
+    else:
+        if 'game_a' not in st.session_state:
+            matchup = pg.sample(2)
+            st.session_state.game_a, st.session_state.game_b = matchup.iloc[0]['Title'], matchup.iloc[1]['Title']
+        ga, gb = st.session_state.game_a, st.session_state.game_b
+        
+        st.subheader("Which game is better?")
+        st.write("")
+        c1, c2 = st.columns(2)
+        with c1:
+            if st.button(f"Vote for {ga}", use_container_width=True): va = True
+            else: va = False
+        with c2:
+            if st.button(f"Vote for {gb}", use_container_width=True): vb = True
+            else: vb = False
+            
+        if va or vb:
+            ea, eb = float(df.loc[df['Title'] == ga, 'Elo_Rating'].values[0]), float(df.loc[df['Title'] == gb, 'Elo_Rating'].values[0])
+            xa, xb = 1 / (1 + 10 ** ((eb - ea) / 400)), 1 / (1 + 10 ** ((ea - eb) / 400))
+            if va: df.loc[df['Title'] == ga, 'Elo_Rating'], df.loc[df['Title'] == gb, 'Elo_Rating'] = ea + 32 * (1 - xa), eb + 32 * (0 - xb)
+            else: df.loc[df['Title'] == ga, 'Elo_Rating'], df.loc[df['Title'] == gb, 'Elo_Rating'] = ea + 32 * (0 - xa), eb + 32 * (1 - xb)
+            save_database(df)
+            del st.session_state.game_a, st.session_state.game_b
+            st.rerun()
+
+# --- PAGE 5: EDIT DATABASE (ADMIN ONLY) ---
+elif page == "Edit Database" and st.session_state.admin_pin_input == ADMIN_PIN:
+    st.title("Edit Database")
+    if df.empty: st.info("No games yet.")
+    else:
+        et = st.selectbox("Search for game:", ["-- Select --"] + df['Title'].tolist())
+        if et != "-- Select --":
+            td = df[df['Title'] == et].iloc[0]
+            ns = st.selectbox("Status", ["Upcoming", "Backlog", "Playing", "Played", "DNF"], index=["Upcoming", "Backlog", "Playing", "Played", "DNF"].index(td['Status']))
+            ng = td['Genre']
+            if ns == "Played":
+                go = list(GENRE_CONFIG.keys())
+                ng = st.selectbox("Genre", go, index=go.index(ng) if ng in go else 0)
+                b1, b2 = GENRE_CONFIG[ng][0], GENRE_CONFIG[ng][1]
+            with st.form("edit"):
+                c_p, c_y, c_oc = st.columns(3)
+                with c_p: ep = st.text_input("Platform", str(td['Platform']))
+                with c_y: ey = st.text_input("Date/Year", str(td['ReleaseDate']))
+                if ns == "Played":
+                    with c_oc: eoc = st.number_input("OpenCritic", 0, 100, int(td['OpenCritic']))
+                
+                e_url = st.text_input("Cover Art URL (Paste an image link here to override IGDB)", str(td['Cover_URL']))
+                
+                if ns == "Played":
+                    c1, c2 = st.columns(2)
+                    with c1: 
+                        eg = st.slider("Gameplay", 1.0, 10.0, float(td['S_Gameplay']) if td['S_Gameplay']>0 else 5.0, 0.1)
+                        ev = st.slider("Visuals", 1.0, 10.0, float(td['S_Visuals']) if td['S_Visuals']>0 else 5.0, 0.1)
+                    with c2: 
+                        ea = st.slider("Audio", 1.0, 10.0, float(td['S_Audio']) if td['S_Audio']>0 else 5.0, 0.1)
+                        ef = st.slider("Fun", 1.0, 10.0, float(td['S_Fun']) if td['S_Fun']>0 else 5.0, 0.1)
+                    c3, c4 = st.columns(2)
+                    with c3: eb1 = st.slider(b1["name"], 1.0, 10.0, float(td['S_Bonus_1']) if td['Bonus_1_Name']==b1['name'] else 5.0, 0.1)
+                    with c4: eb2 = st.slider(b2["name"], 1.0, 10.0, float(td['S_Bonus_2']) if td['Bonus_2_Name']==b2['name'] else 5.0, 0.1)
+                
+                if st.form_submit_button("Update Game"):
+                    if e_url.strip() != "":
+                        curl = e_url.strip()
+                    else:
+                        curl = fetch_cover_art(et)
+                        
+                    if ns == "Played":
+                        bs = round((eg*2) + (ev*2) + (ea*2) + (ef*2) + (eb1*1) + (eb2*1), 1)
+                        df.loc[df['Title'] == et, ['Status', 'Genre', 'Platform', 'ReleaseDate', 'OpenCritic', 'Base_Score', 'Elo_Rating', 'Cover_URL', 'S_Gameplay', 'S_Visuals', 'S_Audio', 'S_Fun', 'Bonus_1_Name', 'S_Bonus_1', 'Bonus_2_Name', 'S_Bonus_2']] = [ns, ng, ep, ey, eoc, bs, td['Elo_Rating'] if td['Elo_Rating']>0 else bs*15, curl, eg, ev, ea, ef, b1["name"], eb1, b2["name"], eb2]
+                    else: df.loc[df['Title'] == et, ['Status', 'Platform', 'ReleaseDate', 'Cover_URL']] = [ns, ep, ey, curl]
+                    save_database(df)
+                    st.success("Database updated.")
+                    st.rerun()
