@@ -45,6 +45,13 @@ st.markdown("""
         div[data-testid="stImage"] {
             margin-bottom: -10px; 
         }
+        /* This targets the internal container width only when on mobile */
+        @media (max-width: 640px) {
+        [data-testid="column"] {
+        flex: 1 1 0% !important;
+        min-width: 0px !important;
+    }
+}
     </style>
 """, unsafe_allow_html=True)
 
