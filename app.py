@@ -42,8 +42,8 @@ st.markdown("""
         }
         /* THE POSTER FIX: Forces uniform size and crops images to fit */
         [data-testid="stImage"] img {
-            width: 200px;
-            height: 100%; /* Fixed height for the row */
+            width: 150px;
+            height: 450px; /* Fixed height for the row */
             object-fit: cover; /* This is the "magic" crop */
             border-radius: 4px;
         }
