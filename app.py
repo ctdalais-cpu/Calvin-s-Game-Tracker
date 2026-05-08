@@ -362,6 +362,11 @@ elif page == "Edit Database" and user_pin == ADMIN_PIN:
                 with c_y: ey = st.text_input("Date/Year", str(td['ReleaseDate']))
                 if ns == "Played":
                     with c_oc: eoc = st.number_input("OpenCritic", 0, 100, int(td['OpenCritic']))
+                
+                # NEW: Manual URL Override Field
+                e_url = st.text_input("Cover Art URL (Paste an image link here to override IGDB)", str(td['Cover_URL']))
+                
+                if ns == "Played":
                     c1, c2 = st.columns(2)
                     with c1: 
                         eg = st.slider("Gameplay", 1.0, 10.0, float(td['S_Gameplay']) if td['S_Gameplay']>0 else 5.0, 0.1)
@@ -372,8 +377,14 @@ elif page == "Edit Database" and user_pin == ADMIN_PIN:
                     c3, c4 = st.columns(2)
                     with c3: eb1 = st.slider(b1["name"], 1.0, 10.0, float(td['S_Bonus_1']) if td['Bonus_1_Name']==b1['name'] else 5.0, 0.1)
                     with c4: eb2 = st.slider(b2["name"], 1.0, 10.0, float(td['S_Bonus_2']) if td['Bonus_2_Name']==b2['name'] else 5.0, 0.1)
+                
                 if st.form_submit_button("Update Game"):
-                    curl = fetch_cover_art(et) if pd.isna(td['Cover_URL']) or td['Cover_URL'] == "" else td['Cover_URL']
+                    # Use the manual URL if provided, otherwise fall back to IGDB fetch
+                    if e_url.strip() != "":
+                        curl = e_url.strip()
+                    else:
+                        curl = fetch_cover_art(et)
+                        
                     if ns == "Played":
                         bs = round((eg*2) + (ev*2) + (ea*2) + (ef*2) + (eb1*1) + (eb2*1), 1)
                         df.loc[df['Title'] == et, ['Status', 'Genre', 'Platform', 'ReleaseDate', 'OpenCritic', 'Base_Score', 'Elo_Rating', 'Cover_URL', 'S_Gameplay', 'S_Visuals', 'S_Audio', 'S_Fun', 'Bonus_1_Name', 'S_Bonus_1', 'Bonus_2_Name', 'S_Bonus_2']] = [ns, ng, ep, ey, eoc, bs, td['Elo_Rating'] if td['Elo_Rating']>0 else bs*15, curl, eg, ev, ea, ef, b1["name"], eb1, b2["name"], eb2]
