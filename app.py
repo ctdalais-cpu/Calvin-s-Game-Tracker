@@ -13,23 +13,46 @@ ADMIN_PIN = st.secrets["ADMIN_PIN"]
 
 st.set_page_config(page_title="Game Tracker", layout="wide", initial_sidebar_state="expanded")
 
+# --- CUSTOM CSS: THE PROFESSIONAL UPGRADE ---
 st.markdown("""
     <style>
-        div[data-testid="stMetricValue"] { font-size: 2rem; }
+        /* Hide Streamlit Branding */
+        #MainMenu {visibility: hidden;}
+        footer {visibility: hidden;}
+        header {visibility: hidden;}
+        
+        /* Dashboard Metric Sizing */
+        div[data-testid="stMetricValue"] { font-size: 2.2rem; font-weight: 700; }
         div[data-testid="stSidebarNav"] { padding-top: 2rem; }
+        
+        /* Subtly round image corners and add a hover lift effect */
+        img {
+            border-radius: 8px;
+            transition: transform 0.2s ease-in-out;
+        }
+        img:hover {
+            transform: scale(1.02);
+        }
+        
+        /* Soften the container borders */
+        div[data-testid="stVerticalBlock"] > div[style*="border"] {
+            border-radius: 10px;
+            border-color: #2D3748 !important;
+            background-color: #1A1C23;
+        }
     </style>
 """, unsafe_allow_html=True)
 
 # --- MASTER CONFIGURATION ---
 GENRE_CONFIG = {
-    "Action": [{"name": "Level Design", "desc": "Pacing, environment layout, and encounter variety."}, {"name": "Combat Feel", "desc": "Impact, responsiveness, and weapon/ability satisfaction."}],
-    "RPG": [{"name": "Narrative", "desc": "Story, lore, world-building, and dialogue."}, {"name": "Characters", "desc": "Party members, NPCs, and character development."}],
-    "Roguelite": [{"name": "Replayability", "desc": "Variety between runs, unlock progression, and longevity."}, {"name": "Clarity", "desc": "Readability of UI, combat cues, and mechanics amidst chaos."}],
-    "Online Multiplayer": [{"name": "Balance", "desc": "Fairness of mechanics, matchmaking, and meta diversity."}, {"name": "Community", "desc": "Social features, toxicity levels, and player interaction."}],
-    "Horror": [{"name": "Atmosphere", "desc": "Lighting, mood, and environmental dread."}, {"name": "Tension", "desc": "Pacing, scare timing, and feelings of vulnerability."}],
-    "Puzzle": [{"name": "Ingenuity", "desc": "Cleverness of mechanics and rewarding 'Aha!' moments."}, {"name": "Clarity", "desc": "Readability of rules, logic, and visual cues."}],
-    "Adventure": [{"name": "Exploration", "desc": "Rewarding curiosity, secrets, and sense of discovery."}, {"name": "World-Building", "desc": "Environmental storytelling, lore, and setting."}],
-    "Strategy": [{"name": "Tactical Depth", "desc": "Meaningful choices, strategic variety, and complexity."}, {"name": "UI / UX", "desc": "Menu navigation, readability, and ease of issuing commands."}]
+    "Action": [{"name": "Level Design", "desc": ""}, {"name": "Combat Feel", "desc": ""}],
+    "RPG": [{"name": "Narrative", "desc": ""}, {"name": "Characters", "desc": ""}],
+    "Roguelite": [{"name": "Replayability", "desc": ""}, {"name": "Clarity", "desc": ""}],
+    "Online Multiplayer": [{"name": "Balance", "desc": ""}, {"name": "Community", "desc": ""}],
+    "Horror": [{"name": "Atmosphere", "desc": ""}, {"name": "Tension", "desc": ""}],
+    "Puzzle": [{"name": "Ingenuity", "desc": ""}, {"name": "Clarity", "desc": ""}],
+    "Adventure": [{"name": "Exploration", "desc": ""}, {"name": "World-Building", "desc": ""}],
+    "Strategy": [{"name": "Tactical Depth", "desc": ""}, {"name": "UI / UX", "desc": ""}]
 }
 
 MASTER_COLUMNS = [
@@ -74,36 +97,45 @@ def fetch_cover_art(title):
         return ""
     except: return ""
 
-# --- SIDEBAR NAVIGATION WITH ADMIN BOUNCER ---
-st.sidebar.title("The Tabs")
+# --- SIDEBAR NAVIGATION (LOGIC AT TOP, VISUALS AT BOTTOM) ---
+st.sidebar.title("🎮 Game Tracker")
+st.sidebar.markdown("<br>", unsafe_allow_html=True)
+
+# 1. State Memory for PIN
+if "admin_pin_input" not in st.session_state:
+    st.session_state.admin_pin_input = ""
 
 available_pages = ["Dashboard", "Rankings"]
-st.sidebar.write("---")
-user_pin = st.sidebar.text_input("Admin Passcode:", type="password")
 
-if user_pin == ADMIN_PIN:
+# 2. Check Permissions
+if st.session_state.admin_pin_input == ADMIN_PIN:
     available_pages.extend(["Add Game", "The Arena", "Edit Database"])
-elif user_pin != "":
-    st.sidebar.error("Incorrect Passcode")
 
+# 3. Render Navigation
 page = st.sidebar.radio("Navigation", available_pages, label_visibility="collapsed")
+
+# 4. Push PIN Input to the very bottom
+st.sidebar.markdown("<br>" * 10, unsafe_allow_html=True)
+st.sidebar.divider()
+st.sidebar.text_input("Admin Access", type="password", key="admin_pin_input", placeholder="Enter PIN...")
+
+if st.session_state.admin_pin_input != "" and st.session_state.admin_pin_input != ADMIN_PIN:
+    st.sidebar.error("Incorrect Passcode")
 
 # --- PAGE 1: DASHBOARD ---
 if page == "Dashboard":
     st.title("Dashboard")
     
-    # We grab the data early so we can use it throughout the page
     played_games = df[df['Status'] == 'Played']
     upcoming_all = df[df['Status'] == 'Upcoming'].copy()
     
     dash_left, dash_right = st.columns([1.2, 1], gap="large")
     
     with dash_left:
-        # SECTION: CURRENTLY PLAYING
         st.subheader("Currently Playing")
         playing_games = df[df['Status'] == 'Playing']
         
-        if 'scoring_game' in st.session_state and user_pin == ADMIN_PIN:
+        if 'scoring_game' in st.session_state and st.session_state.admin_pin_input == ADMIN_PIN:
             finish_target = st.session_state.scoring_game
             target_data = playing_games[playing_games['Title'] == finish_target].iloc[0]
             st.markdown(f"**Finish:** {finish_target}")
@@ -149,15 +181,14 @@ if page == "Dashboard":
                     with st.container(border=True):
                         col_t, col_b = st.columns([3, 1])
                         col_t.write(f"**{row['Title']}** ({row['Platform']})")
-                        if user_pin == ADMIN_PIN:
+                        if st.session_state.admin_pin_input == ADMIN_PIN:
                             if col_b.button("Finish", key=f"fin_{idx}", use_container_width=True):
                                 st.session_state.scoring_game = row['Title']
                                 st.rerun()
             else: st.info("You aren't currently playing anything.")
 
-        st.write("") # Spacer
+        st.write("") 
         
-        # SECTION: THE BACKLOG
         st.subheader("The Backlog")
         backlog_games = df[df['Status'] == 'Backlog']
         if not backlog_games.empty:
@@ -165,8 +196,8 @@ if page == "Dashboard":
                 with st.container(border=True):
                     col_t, col_b = st.columns([3, 1])
                     col_t.write(f"**{row['Title']}** ({row['Platform']})")
-                    if user_pin == ADMIN_PIN:
-                        if col_b.button("Start Playing", key=f"start_{idx}", use_container_width=True):
+                    if st.session_state.admin_pin_input == ADMIN_PIN:
+                        if col_b.button("Play", key=f"start_{idx}", use_container_width=True):
                             df.loc[df['Title'] == row['Title'], 'Status'] = 'Playing'
                             save_database(df)
                             st.rerun()
@@ -174,7 +205,6 @@ if page == "Dashboard":
             st.info("Your backlog is completely empty!")
 
     with dash_right:
-        # SECTION: UPCOMING
         st.subheader("Upcoming Releases")
         if not upcoming_all.empty:
             upcoming_all['DateObj'] = pd.to_datetime(upcoming_all['ReleaseDate'], errors='coerce')
@@ -199,7 +229,7 @@ if page == "Dashboard":
                     st.divider()
         else: st.info("No upcoming releases tracked.")
 
-        if user_pin == ADMIN_PIN:
+        if st.session_state.admin_pin_input == ADMIN_PIN:
             with st.expander("Quick Add Upcoming"):
                 with st.form("quick_up"):
                     t = st.text_input("Title")
@@ -214,7 +244,6 @@ if page == "Dashboard":
                         save_database(df)
                         st.rerun()
 
-    # --- SECTION: ANALYTICS DASHBOARD ---
     st.divider()
     st.subheader("Data & Insights")
     
@@ -222,47 +251,42 @@ if page == "Dashboard":
         c_chart1, c_chart2, c_chart3 = st.columns(3)
         
         with c_chart1:
-            # Pie Chart: Genres
             genre_counts = played_games['Genre'].value_counts().reset_index()
             genre_counts.columns = ['Genre', 'Count']
-            fig1 = px.pie(genre_counts, values='Count', names='Genre', title="Most Played Genres", hole=0.4)
-            fig1.update_layout(margin=dict(t=40, b=10, l=10, r=10))
+            fig1 = px.pie(genre_counts, values='Count', names='Genre', title="Most Played Genres", hole=0.4, template="plotly_dark")
+            fig1.update_layout(margin=dict(t=40, b=10, l=10, r=10), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
             st.plotly_chart(fig1, use_container_width=True)
 
         with c_chart2:
-            # Bar Chart: Avg Score by Year
             played_games['Year'] = played_games['ReleaseDate'].astype(str).str[:4]
             yearly_avg = played_games.groupby('Year')['Base_Score'].mean().reset_index()
-            fig2 = px.bar(yearly_avg, x='Year', y='Base_Score', title="Avg Score by Release Year", range_y=[0,10])
-            fig2.update_traces(marker_color='#FF4B4B') 
-            fig2.update_layout(margin=dict(t=40, b=10, l=10, r=10))
+            fig2 = px.bar(yearly_avg, x='Year', y='Base_Score', title="Avg Score by Release Year", range_y=[0,10], template="plotly_dark")
+            fig2.update_traces(marker_color='#9146FF') 
+            fig2.update_layout(margin=dict(t=40, b=10, l=10, r=10), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
             st.plotly_chart(fig2, use_container_width=True)
 
         with c_chart3:
-            # Scatter Plot: My Score vs Critic
             valid_oc = played_games[played_games['OpenCritic'] > 0]
             if not valid_oc.empty:
-                fig3 = px.scatter(valid_oc, x='OpenCritic', y='Base_Score', hover_name='Title', title="My Score vs Critics", labels={'OpenCritic': 'Critic Score', 'Base_Score': 'My Score'}, range_x=[0,100], range_y=[0,10])
+                fig3 = px.scatter(valid_oc, x='OpenCritic', y='Base_Score', hover_name='Title', title="My Score vs Critics", labels={'OpenCritic': 'Critic Score', 'Base_Score': 'My Score'}, range_x=[0,100], range_y=[0,10], template="plotly_dark")
                 fig3.add_shape(type="line", x0=0, y0=0, x1=100, y1=10, line=dict(color="gray", dash="dash"))
-                fig3.update_layout(margin=dict(t=40, b=10, l=10, r=10))
+                fig3.update_traces(marker=dict(color='#9146FF', size=10))
+                fig3.update_layout(margin=dict(t=40, b=10, l=10, r=10), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
                 st.plotly_chart(fig3, use_container_width=True)
             else:
                 st.info("Score games with OpenCritic ratings to generate this chart.")
     else:
         st.info("Finish and score some games to unlock your analytics dashboard!")
 
-    # --- SECTION: KEY METRICS (MOVED TO BOTTOM) ---
     st.write("")
     st.subheader("At a Glance")
     col_m1, col_m2, col_m3 = st.columns(3)
     
     with col_m1: 
         st.metric("Completed Games", len(played_games))
-        
     with col_m2:
         avg_score = played_games['Base_Score'].mean() if not played_games.empty else 0
         st.metric("Average Score", f"{avg_score:.1f}")
-        
     with col_m3:
         if not upcoming_all.empty:
             upcoming_all['DateObj'] = pd.to_datetime(upcoming_all['ReleaseDate'], errors='coerce')
@@ -332,7 +356,7 @@ elif page == "Rankings":
         else: st.write("No abandoned games yet.")
 
 # --- PAGE 3: ADD GAME (ADMIN ONLY) ---
-elif page == "Add Game" and user_pin == ADMIN_PIN:
+elif page == "Add Game" and st.session_state.admin_pin_input == ADMIN_PIN:
     st.title("Add to Library")
     add_status = st.radio("What are you adding?", ["Played (Completed)", "Currently Playing", "Backlog (To Play)", "Upcoming Release", "Did Not Finish (DNF)"], horizontal=True)
     db_status = "Played" if "Played" in add_status else ("Playing" if "Playing" in add_status else ("Backlog" if "Backlog" in add_status else ("Upcoming" if "Upcoming" in add_status else "DNF")))
@@ -379,7 +403,7 @@ elif page == "Add Game" and user_pin == ADMIN_PIN:
             st.rerun()
 
 # --- PAGE 4: THE ARENA (ADMIN ONLY) ---
-elif page == "The Arena" and user_pin == ADMIN_PIN:
+elif page == "The Arena" and st.session_state.admin_pin_input == ADMIN_PIN:
     st.title("The Arena")
     pg = df[df['Status'] == 'Played']
     if len(pg) < 2: st.info("Score at least 2 games to unlock the Arena.")
@@ -409,7 +433,7 @@ elif page == "The Arena" and user_pin == ADMIN_PIN:
             st.rerun()
 
 # --- PAGE 5: EDIT DATABASE (ADMIN ONLY) ---
-elif page == "Edit Database" and user_pin == ADMIN_PIN:
+elif page == "Edit Database" and st.session_state.admin_pin_input == ADMIN_PIN:
     st.title("Edit Database")
     if df.empty: st.info("No games yet.")
     else:
