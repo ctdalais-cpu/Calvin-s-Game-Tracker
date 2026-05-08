@@ -74,8 +74,7 @@ def fetch_cover_art(title):
     except: return ""
 
 # --- SIDEBAR NAVIGATION WITH ADMIN BOUNCER ---
-st.sidebar.title("🎮 Game Tracker")
-st.sidebar.divider()
+st.sidebar.title("Game Tracker")
 
 # Only show the public pages by default
 available_pages = ["Dashboard", "Rankings"]
