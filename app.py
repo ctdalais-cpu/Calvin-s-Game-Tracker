@@ -336,36 +336,38 @@ elif page == "Rankings":
             st.info("No games match your search/filter.")
         else:
             # THE GRID
+            # THE GRID (REWRITTEN FOR ALIGNMENT)
             cols_per_row = 5
-            rows = [rv.iloc[i:i + cols_per_row] for i in range(0, len(rv), cols_per_row)]
-
-            for row_data in rows:
-                cols = st.columns(cols_per_row)
-                for i, (idx, game) in enumerate(row_data.iterrows()):
-                    with cols[i]:
-                        with st.container(border=True):
-                            # Cover Image
-                            if pd.notna(game['Cover_URL']) and game['Cover_URL'] != "":
-                                st.image(game['Cover_URL'], use_container_width=True)
-                            else:
-                                # Placeholder for games with no cover
-                                st.image("https://via.placeholder.com/150x200?text=No+Cover", use_container_width=True)
-                            
-                            # Rank & Title
-                            st.markdown(f"**#{game['Rank']} {game['Title']}**")
-                            st.caption(f"{game['Platform']} | {game['ReleaseDate']}")
-                            
-                            # Score Comparison Row
-                            s1, s2 = st.columns(2)
-                            s1.markdown(f"<span style='color:#9146FF; font-weight:bold; font-size:1.1rem;'>{game['Base_Score']:.1f}</span>", unsafe_allow_html=True)
-                            if game['OpenCritic'] > 0:
-                                diff = game['Base_Score'] - game['OpenCritic']
-                                color = "#48BB78" if diff >= 0 else "#F56565" # Green if you liked it more, Red if less
-                                s2.markdown(f"<span style='color:{color}; font-size:0.8rem;'>OC: {game['OpenCritic']}</span>", unsafe_allow_html=True)
-                            
-                            # Minimalist "View Details" button
-                            if st.button("Details", key=f"det_{idx}", use_container_width=True):
-                                st.session_state.inspect_game = game['Title']
+            rv_list = rv.reset_index(drop=True)
+            
+            # We create the columns first
+            cols = st.columns(cols_per_row)
+            
+            for i, game in rv_list.iterrows():
+                # This math (i % 5) places the game in the correct column (0, 1, 2, 3, or 4)
+                with cols[i % 5]:
+                    with st.container(border=True):
+                        # 1. Image (CSS will now force this to 300px and crop it)
+                        img_url = game['Cover_URL'] if pd.notna(game['Cover_URL']) and game['Cover_URL'] != "" else "https://via.placeholder.com/200x300?text=No+Cover"
+                        st.image(img_url, use_container_width=True)
+                        
+                        # 2. Metadata (Title and Rank)
+                        # We use a fixed-height div for the title so long names don't break the row
+                        st.markdown(f"<div style='height: 50px; overflow: hidden;'><b>#{game['Rank']} {game['Title']}</b></div>", unsafe_allow_html=True)
+                        st.caption(f"{game['Platform']} | {game['ReleaseDate']}")
+                        
+                        # 3. Scores
+                        s1, s2 = st.columns(2)
+                        s1.markdown(f"<span style='color:#9146FF; font-weight:bold; font-size:1.1rem;'>{game['Base_Score']:.1f}</span>", unsafe_allow_html=True)
+                        
+                        if game['OpenCritic'] > 0:
+                            diff = game['Base_Score'] - game['OpenCritic']
+                            color = "#48BB78" if diff >= 0 else "#F56565"
+                            s2.markdown(f"<span style='color:{color}; font-size:0.8rem;'>OC: {game['OpenCritic']}</span>", unsafe_allow_html=True)
+                        
+                        # 4. The Button (Locked to the bottom of the container)
+                        if st.button("Details", key=f"det_{game['Title']}_{i}", use_container_width=True):
+                            st.session_state.inspect_game = game['Title']
 
             # THE MODAL-STYLE INSPECTOR (Appears if "Details" is clicked)
             if 'inspect_game' in st.session_state:
