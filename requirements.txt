@@ -1,6 +1,6 @@
 streamlit
 pandas
-requests
+plotly
 gspread
 google-auth
-plotly
+requests
