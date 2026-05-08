@@ -4,6 +4,7 @@ import datetime
 import requests
 import gspread
 from google.oauth2.service_account import Credentials
+import plotly.express as px
 
 # --- API CREDENTIALS ---
 CLIENT_ID = st.secrets["TWITCH_CLIENT_ID"]
@@ -16,11 +17,6 @@ st.markdown("""
     <style>
         div[data-testid="stMetricValue"] { font-size: 2rem; }
         div[data-testid="stSidebarNav"] { padding-top: 2rem; }
-        
-        /* HIDE STREAMLIT BRANDING */
-        #MainMenu {visibility: hidden;}
-        footer {visibility: hidden;}
-        header {visibility: hidden;}
     </style>
 """, unsafe_allow_html=True)
 
@@ -79,14 +75,10 @@ def fetch_cover_art(title):
     except: return ""
 
 # --- SIDEBAR NAVIGATION WITH ADMIN BOUNCER ---
-# Only show the public pages by default
 available_pages = ["Dashboard", "Rankings"]
-
-# The Admin Unlock Box
 st.sidebar.write("---")
 user_pin = st.sidebar.text_input("Admin Passcode:", type="password")
 
-# If the PIN matches, unlock the rest of the app
 if user_pin == ADMIN_PIN:
     available_pages.extend(["Add Game", "The Arena", "Edit Database"])
 elif user_pin != "":
@@ -117,6 +109,7 @@ if page == "Dashboard":
     dash_left, dash_right = st.columns([1.2, 1], gap="large")
     
     with dash_left:
+        # SECTION: CURRENTLY PLAYING
         st.subheader("Currently Playing")
         playing_games = df[df['Status'] == 'Playing']
         
@@ -172,7 +165,26 @@ if page == "Dashboard":
                                 st.rerun()
             else: st.info("You aren't currently playing anything.")
 
+        st.write("") # Spacer
+        
+        # SECTION: THE BACKLOG
+        st.subheader("The Backlog")
+        backlog_games = df[df['Status'] == 'Backlog']
+        if not backlog_games.empty:
+            for idx, row in backlog_games.iterrows():
+                with st.container(border=True):
+                    col_t, col_b = st.columns([3, 1])
+                    col_t.write(f"**{row['Title']}** ({row['Platform']})")
+                    if user_pin == ADMIN_PIN:
+                        if col_b.button("Start Playing", key=f"start_{idx}", use_container_width=True):
+                            df.loc[df['Title'] == row['Title'], 'Status'] = 'Playing'
+                            save_database(df)
+                            st.rerun()
+        else:
+            st.info("Your backlog is completely empty!")
+
     with dash_right:
+        # SECTION: UPCOMING
         st.subheader("Upcoming Releases")
         if not upcoming_all.empty:
             upcoming_all['DateObj'] = pd.to_datetime(upcoming_all['ReleaseDate'], errors='coerce')
@@ -211,6 +223,43 @@ if page == "Dashboard":
                         df = pd.concat([df, new_up], ignore_index=True)
                         save_database(df)
                         st.rerun()
+
+    # --- NEW SECTION: ANALYTICS DASHBOARD ---
+    st.divider()
+    st.subheader("Data & Insights")
+    
+    if len(played_games) > 0:
+        c_chart1, c_chart2, c_chart3 = st.columns(3)
+        
+        with c_chart1:
+            # Pie Chart: Genres
+            genre_counts = played_games['Genre'].value_counts().reset_index()
+            genre_counts.columns = ['Genre', 'Count']
+            fig1 = px.pie(genre_counts, values='Count', names='Genre', title="Most Played Genres", hole=0.4)
+            fig1.update_layout(margin=dict(t=40, b=10, l=10, r=10))
+            st.plotly_chart(fig1, use_container_width=True)
+
+        with c_chart2:
+            # Bar Chart: Avg Score by Year
+            played_games['Year'] = played_games['ReleaseDate'].astype(str).str[:4]
+            yearly_avg = played_games.groupby('Year')['Base_Score'].mean().reset_index()
+            fig2 = px.bar(yearly_avg, x='Year', y='Base_Score', title="Avg Score by Release Year", range_y=[0,10])
+            fig2.update_traces(marker_color='#FF4B4B') # Streamlit's native red accent
+            fig2.update_layout(margin=dict(t=40, b=10, l=10, r=10))
+            st.plotly_chart(fig2, use_container_width=True)
+
+        with c_chart3:
+            # Scatter Plot: My Score vs Critic
+            valid_oc = played_games[played_games['OpenCritic'] > 0]
+            if not valid_oc.empty:
+                fig3 = px.scatter(valid_oc, x='OpenCritic', y='Base_Score', hover_name='Title', title="My Score vs Critics", labels={'OpenCritic': 'Critic Score', 'Base_Score': 'My Score'}, range_x=[0,100], range_y=[0,10])
+                fig3.add_shape(type="line", x0=0, y0=0, x1=100, y1=10, line=dict(color="gray", dash="dash"))
+                fig3.update_layout(margin=dict(t=40, b=10, l=10, r=10))
+                st.plotly_chart(fig3, use_container_width=True)
+            else:
+                st.info("Score games with OpenCritic ratings to generate this chart.")
+    else:
+        st.info("Finish and score some games to unlock your analytics dashboard!")
 
 # --- PAGE 2: RANKINGS ---
 elif page == "Rankings":
@@ -274,8 +323,9 @@ elif page == "Rankings":
 # --- PAGE 3: ADD GAME (ADMIN ONLY) ---
 elif page == "Add Game" and user_pin == ADMIN_PIN:
     st.title("Add to Library")
-    add_status = st.radio("What are you adding?", ["Played (Completed)", "Currently Playing", "Upcoming Release", "Did Not Finish (DNF)"], horizontal=True)
-    db_status = "Played" if "Played" in add_status else ("Playing" if "Playing" in add_status else ("Upcoming" if "Upcoming" in add_status else "DNF"))
+    add_status = st.radio("What are you adding?", ["Played (Completed)", "Currently Playing", "Backlog (To Play)", "Upcoming Release", "Did Not Finish (DNF)"], horizontal=True)
+    db_status = "Played" if "Played" in add_status else ("Playing" if "Playing" in add_status else ("Backlog" if "Backlog" in add_status else ("Upcoming" if "Upcoming" in add_status else "DNF")))
+    
     if db_status == "Played":
         genre = st.selectbox("Select Primary Genre", list(GENRE_CONFIG.keys()))
         b1_data, b2_data = GENRE_CONFIG[genre][0], GENRE_CONFIG[genre][1]
@@ -355,7 +405,7 @@ elif page == "Edit Database" and user_pin == ADMIN_PIN:
         et = st.selectbox("Search for game:", ["-- Select --"] + df['Title'].tolist())
         if et != "-- Select --":
             td = df[df['Title'] == et].iloc[0]
-            ns = st.selectbox("Status", ["Upcoming", "Playing", "Played", "DNF"], index=["Upcoming", "Playing", "Played", "DNF"].index(td['Status']))
+            ns = st.selectbox("Status", ["Upcoming", "Backlog", "Playing", "Played", "DNF"], index=["Upcoming", "Backlog", "Playing", "Played", "DNF"].index(td['Status']))
             ng = td['Genre']
             if ns == "Played":
                 go = list(GENRE_CONFIG.keys())
@@ -368,7 +418,6 @@ elif page == "Edit Database" and user_pin == ADMIN_PIN:
                 if ns == "Played":
                     with c_oc: eoc = st.number_input("OpenCritic", 0, 100, int(td['OpenCritic']))
                 
-                # NEW: Manual URL Override Field
                 e_url = st.text_input("Cover Art URL (Paste an image link here to override IGDB)", str(td['Cover_URL']))
                 
                 if ns == "Played":
@@ -384,7 +433,6 @@ elif page == "Edit Database" and user_pin == ADMIN_PIN:
                     with c4: eb2 = st.slider(b2["name"], 1.0, 10.0, float(td['S_Bonus_2']) if td['Bonus_2_Name']==b2['name'] else 5.0, 0.1)
                 
                 if st.form_submit_button("Update Game"):
-                    # Use the manual URL if provided, otherwise fall back to IGDB fetch
                     if e_url.strip() != "":
                         curl = e_url.strip()
                     else:
