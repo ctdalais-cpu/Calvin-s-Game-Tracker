@@ -261,7 +261,7 @@ if page == "Dashboard":
             fig1.update_layout(margin=dict(t=40, b=10, l=10, r=10), showlegend=False, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
             st.plotly_chart(fig1, use_container_width=True)
           
-       with c_chart2:
+        with c_chart2:
             # Bar Chart: Avg Score by Year
             played_games['Year'] = played_games['ReleaseDate'].astype(str).str[:4]
             yearly_avg = played_games.groupby('Year')['Base_Score'].mean().reset_index()
