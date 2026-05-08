@@ -45,6 +45,13 @@ st.markdown("""
         div[data-testid="stImage"] {
             margin-bottom: -10px; 
         }
+
+        Inject CSS to force a grid layout on small screens
+    [data-testid="column"] {
+        min-width: 45% !important;
+        flex: 1 1 45% !important;
+    }
+   
     </style>
 """, unsafe_allow_html=True)
 
