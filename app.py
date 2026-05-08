@@ -13,7 +13,7 @@ ADMIN_PIN = st.secrets["ADMIN_PIN"]
 
 st.set_page_config(page_title="Game Tracker", layout="wide", initial_sidebar_state="expanded")
 
-# --- CUSTOM CSS: THE PROFESSIONAL UPGRADE ---
+# --- CUSTOM CSS: TRUE BOX ART AND CLEAN GRIDS ---
 st.markdown("""
     <style>
         /* Hide Streamlit Branding */
@@ -25,27 +25,25 @@ st.markdown("""
         div[data-testid="stMetricValue"] { font-size: 2.2rem; font-weight: 700; }
         div[data-testid="stSidebarNav"] { padding-top: 2rem; }
         
-        /* Force uniform image sizes and add hover lift */
+        /* Force true Box Art aspect ratio (3:4) */
         div[data-testid="stImage"] img {
-            height: 260px; /* Locks all images to the same height */
-            object-fit: cover; /* Crops the image proportionally to fit */
-            border-radius: 8px;
-            transition: transform 0.2s ease-in-out;
+            aspect-ratio: 3 / 4; 
+            object-fit: cover; /* Trims edges cleanly if the source image is slightly off */
+            border-radius: 6px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.4); /* Adds depth without needing a container border */
+            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
             width: 100%;
         }
+        
+        /* Hover effect directly on the images */
         div[data-testid="stImage"] img:hover {
             transform: scale(1.03);
+            box-shadow: 0 6px 15px rgba(145, 70, 255, 0.4); /* Twitch purple glow */
         }
         
-        /* Nicer containers with a hover glow effect */
-        div[data-testid="stVerticalBlockBorderWrapper"] {
-            border-radius: 10px;
-            background-color: #1A1C23;
-            transition: border-color 0.3s, box-shadow 0.3s;
-        }
-        div[data-testid="stVerticalBlockBorderWrapper"]:hover {
-            border-color: #9146FF !important; /* Twitch Purple Glow */
-            box-shadow: 0 4px 12px rgba(145, 70, 255, 0.15);
+        /* Tighten up the gap between the image and the text below it */
+        div[data-testid="stImage"] {
+            margin-bottom: -10px; 
         }
     </style>
 """, unsafe_allow_html=True)
@@ -182,18 +180,19 @@ if page == "Dashboard":
                 play_cols = st.columns(4)
                 for idx, (_, row) in enumerate(playing_games.iterrows()):
                     with play_cols[idx % 4]:
-                        with st.container(border=True, height=400):
-                            if pd.notna(row['Cover_URL']) and row['Cover_URL'] != "": 
-                                st.image(row['Cover_URL'], use_container_width=True)
-                            st.write(f"**{row['Title']}**")
-                            st.caption(row['Platform'])
-                            if st.session_state.admin_pin_input == ADMIN_PIN:
-                                if st.button("Finish", key=f"fin_{row['Title']}", use_container_width=True):
-                                    st.session_state.scoring_game = row['Title']
-                                    st.rerun()
+                        # Removed st.container, writing directly to the column for a cleaner look
+                        if pd.notna(row['Cover_URL']) and row['Cover_URL'] != "": 
+                            st.image(row['Cover_URL'], use_container_width=True)
+                        st.write(f"**{row['Title']}**")
+                        st.caption(f"{row['Platform']} • {row['ReleaseDate']}")
+                        if st.session_state.admin_pin_input == ADMIN_PIN:
+                            if st.button("Finish", key=f"fin_{row['Title']}", use_container_width=True):
+                                st.session_state.scoring_game = row['Title']
+                                st.rerun()
             else: st.info("You aren't currently playing anything.")
 
         st.write("") 
+        st.write("")
         
         st.subheader("The Backlog")
         backlog_games = df[df['Status'] == 'Backlog']
@@ -201,16 +200,15 @@ if page == "Dashboard":
             back_cols = st.columns(6)
             for idx, (_, row) in enumerate(backlog_games.iterrows()):
                 with back_cols[idx % 6]:
-                    with st.container(border=True, height=380):
-                        if pd.notna(row['Cover_URL']) and row['Cover_URL'] != "": 
-                            st.image(row['Cover_URL'], use_container_width=True)
-                        st.caption(f"**{row['Title']}**")
-                        st.caption(row['Platform']) # Added missing platform
-                        if st.session_state.admin_pin_input == ADMIN_PIN:
-                            if st.button("Play", key=f"start_{row['Title']}", use_container_width=True):
-                                df.loc[df['Title'] == row['Title'], 'Status'] = 'Playing'
-                                save_database(df)
-                                st.rerun()
+                    if pd.notna(row['Cover_URL']) and row['Cover_URL'] != "": 
+                        st.image(row['Cover_URL'], use_container_width=True)
+                    st.write(f"**{row['Title']}**")
+                    st.caption(f"{row['Platform']}")
+                    if st.session_state.admin_pin_input == ADMIN_PIN:
+                        if st.button("Play", key=f"start_{row['Title']}", use_container_width=True):
+                            df.loc[df['Title'] == row['Title'], 'Status'] = 'Playing'
+                            save_database(df)
+                            st.rerun()
         else:
             st.info("Your backlog is completely empty!")
 
@@ -226,11 +224,10 @@ if page == "Dashboard":
                 up_cols = st.columns(4) 
                 for index, (_, row) in enumerate(upcoming_all.iterrows()):
                     with up_cols[index % 4]: 
-                        with st.container(border=True, height=380):
-                            if pd.notna(row['Cover_URL']) and row['Cover_URL'] != "": 
-                                st.image(row['Cover_URL'], use_container_width=True)
-                            st.caption(f"**{row['Title']}**")
-                            st.caption(f"{row['ReleaseDate']}") # Added missing release date
+                        if pd.notna(row['Cover_URL']) and row['Cover_URL'] != "": 
+                            st.image(row['Cover_URL'], use_container_width=True)
+                        st.write(f"**{row['Title']}**")
+                        st.caption(f"{row['ReleaseDate']} • {row['Platform']}")
             elif view_mode == "Agenda":
                 upcoming_all['MonthYear'] = upcoming_all['DateObj'].dt.strftime('%B %Y').fillna('TBD')
                 for month, group in upcoming_all.groupby('MonthYear', sort=False):
@@ -324,18 +321,20 @@ elif page == "Rankings":
             
             c_left, c_right = st.columns([2, 1], gap="large")
             with c_left: 
-                # Top 10 Grid
+                # Top 10 Grid - Restored with all specific data
                 st.subheader("Top 10 Rankings")
                 top_10 = rv.head(10)
                 t10_cols = st.columns(5)
                 for idx, (_, row) in enumerate(top_10.iterrows()):
                     with t10_cols[idx % 5]:
-                        with st.container(border=True, height=400):
-                            st.markdown(f"**#{row['Rank']}**")
-                            if pd.notna(row['Cover_URL']) and row['Cover_URL'] != "": 
-                                st.image(row['Cover_URL'], use_container_width=True)
-                            st.caption(f"**{row['Title']}**")
+                        st.markdown(f"**#{row['Rank']}**")
+                        if pd.notna(row['Cover_URL']) and row['Cover_URL'] != "": 
+                            st.image(row['Cover_URL'], use_container_width=True)
+                        st.write(f"**{row['Title']}**")
+                        st.caption(f"{row['Platform']} • {row['ReleaseDate']}")
+                        st.write(f"⭐ **{row['Base_Score']}**")
                 
+                st.write("")
                 st.divider()
                 st.subheader("11 & Beyond")
                 rest_of_games = rv.iloc[10:]
