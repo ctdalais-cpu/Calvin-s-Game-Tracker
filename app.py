@@ -244,6 +244,7 @@ if page == "Dashboard":
                         save_database(df)
                         st.rerun()
 
+ # --- SECTION: ANALYTICS DASHBOARD ---
     st.divider()
     st.subheader("Data & Insights")
     
@@ -255,70 +256,32 @@ if page == "Dashboard":
             genre_counts.columns = ['Genre', 'Count']
             fig1 = px.pie(genre_counts, values='Count', names='Genre', title="Most Played Genres", hole=0.4, template="plotly_dark")
             
-            # NEW: Force the chart to display the Genre name (label) on the slices
+            # The labels you wanted!
             fig1.update_traces(textinfo='label', textposition='inside')
             
             fig1.update_layout(margin=dict(t=40, b=10, l=10, r=10), showlegend=False, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
             st.plotly_chart(fig1, use_container_width=True)
-          
+
         with c_chart2:
             # Bar Chart: Avg Score by Year
             played_games['Year'] = played_games['ReleaseDate'].astype(str).str[:4]
             yearly_avg = played_games.groupby('Year')['Base_Score'].mean().reset_index()
-            
-            # We explicitly create a text column for Plotly to use
-            yearly_avg['Label'] = yearly_avg['Base_Score'].map(lambda x: f"<b>{x:.1f}</b>")
-            
-            fig2 = px.bar(yearly_avg, x='Year', y='Base_Score', text='Label', 
-                          title="Avg Score by Year", range_y=[0,10.5], template="plotly_dark")
-            
-            fig2.update_traces(
-                marker_color='#9146FF',
-                textposition='inside',
-                insidetextanchor='middle',
-                textfont=dict(size=14, color="white"),
-                hoverinfo='none', # This kills the ugly hover box
-                hovertemplate=None # This ensures no tooltip pops up at all
-            )
-            
-            fig2.update_layout(
-                margin=dict(t=40, b=10, l=10, r=10), 
-                paper_bgcolor='rgba(0,0,0,0)', 
-                plot_bgcolor='rgba(0,0,0,0)',
-                yaxis_visible=False,
-                uniformtext_mode='show' # Force display
-            )
-            st.plotly_chart(fig2, use_container_width=True, config={'displayModeBar': False})
+            fig2 = px.bar(yearly_avg, x='Year', y='Base_Score', title="Avg Score by Release Year", range_y=[0,10], template="plotly_dark")
+            fig2.update_traces(marker_color='#9146FF') 
+            fig2.update_layout(margin=dict(t=40, b=10, l=10, r=10), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
+            st.plotly_chart(fig2, use_container_width=True)
 
         with c_chart3:
-            # Horizontal Bar Chart: Avg Score by Genre
-            genre_avg = played_games.groupby('Genre')['Base_Score'].mean().reset_index()
-            genre_avg = genre_avg.sort_values(by='Base_Score', ascending=True) 
-            
-            # Again, hard-coding the text labels
-            genre_avg['Label'] = genre_avg['Base_Score'].map(lambda x: f"<b>{x:.1f}</b>")
-            
-            fig3 = px.bar(genre_avg, x='Base_Score', y='Genre', text='Label', 
-                          orientation='h', title="Avg Score by Genre", range_x=[0,10.5], template="plotly_dark")
-            
-            fig3.update_traces(
-                marker_color='#9146FF',
-                textposition='inside',
-                insidetextanchor='middle',
-                textfont=dict(size=14, color="white"),
-                hoverinfo='none', # Kills hover
-                hovertemplate=None
-            )
-            
-            fig3.update_layout(
-                margin=dict(t=40, b=10, l=10, r=10), 
-                xaxis_visible=False,
-                yaxis_title=None,
-                paper_bgcolor='rgba(0,0,0,0)', 
-                plot_bgcolor='rgba(0,0,0,0)',
-                uniformtext_mode='show'
-            )
-            st.plotly_chart(fig3, use_container_width=True, config={'displayModeBar': False})
+            # Scatter Plot: My Score vs Critic
+            valid_oc = played_games[played_games['OpenCritic'] > 0]
+            if not valid_oc.empty:
+                fig3 = px.scatter(valid_oc, x='OpenCritic', y='Base_Score', hover_name='Title', title="My Score vs Critics", labels={'OpenCritic': 'Critic Score', 'Base_Score': 'My Score'}, range_x=[0,100], range_y=[0,10], template="plotly_dark")
+                fig3.add_shape(type="line", x0=0, y0=0, x1=100, y1=10, line=dict(color="gray", dash="dash"))
+                fig3.update_traces(marker=dict(color='#9146FF', size=10))
+                fig3.update_layout(margin=dict(t=40, b=10, l=10, r=10), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
+                st.plotly_chart(fig3, use_container_width=True)
+            else:
+                st.info("Score games with OpenCritic ratings to generate this chart.")
     else:
         st.info("Finish and score some games to unlock your analytics dashboard!")
 
