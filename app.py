@@ -16,36 +16,33 @@ st.set_page_config(page_title="Game Tracker", layout="wide", initial_sidebar_sta
 # --- CUSTOM CSS: TRUE BOX ART AND CLEAN GRIDS ---
 st.markdown("""
     <style>
-        /* Hide Streamlit Branding */
-        #MainMenu {visibility: hidden;}
-        footer {visibility: hidden;}
-        header {visibility: hidden;}
-        
-       /* 1. Target the 'Block' that holds columns and force it to stay a ROW */
-div[data-testid="stHorizontalBlock"] {
-    display: flex !important;
-    flex-direction: row !important;
-    flex-wrap: wrap !important;
-    width: 100% !important;
+        /* --- RESPONSIVE GRID FIX --- */
+
+/* This block ONLY runs on screens smaller than 768px (Mobile/Tablets) */
+@media (max-width: 768px) {
+    div[data-testid="stHorizontalBlock"] {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: wrap !important;
+    }
+
+    div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {
+        width: 48% !important; 
+        flex: 1 1 48% !important;
+        min-width: 48% !important;
+    }
+    
+    /* Extra padding fix for mobile images */
+    div[data-testid="stImage"] img {
+        margin-bottom: 5px !important;
+    }
 }
 
-/* 2. Target the immediate children (the columns) */
-div[data-testid="stHorizontalBlock"] > div {
-    width: 48% !important;  /* This forces 2 columns */
-    flex: 1 1 48% !important;
-    min-width: 48% !important;
-}
-
-/* 3. This is the 'Silver Bullet': Streamlit adds a wrapper div inside columns 
-   that often has a hardcoded 'width: 100%'. We have to kill that too. */
-div[data-testid="column"] > div {
-    width: 100% !important;
-}
-
-/* 4. Ensure images don't overflow their new small homes */
-div[data-testid="stImage"] img {
-    max-width: 100% !important;
-    height: auto !important;
+/* This block runs on Desktop to ensure the 4-column layout looks normal again */
+@media (min-width: 769px) {
+    div[data-testid="column"] {
+        min-width: 0% !important; /* Resets our mobile hack */
+    }
 }
     </style>
 """, unsafe_allow_html=True)
