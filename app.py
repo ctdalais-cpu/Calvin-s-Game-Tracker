@@ -25,20 +25,27 @@ st.markdown("""
         div[data-testid="stMetricValue"] { font-size: 2.2rem; font-weight: 700; }
         div[data-testid="stSidebarNav"] { padding-top: 2rem; }
         
-        /* Subtly round image corners and add a hover lift effect */
-        img {
+        /* Force uniform image sizes and add hover lift */
+        div[data-testid="stImage"] img {
+            height: 260px; /* Locks all images to the same height */
+            object-fit: cover; /* Crops the image proportionally to fit */
             border-radius: 8px;
             transition: transform 0.2s ease-in-out;
+            width: 100%;
         }
-        img:hover {
-            transform: scale(1.02);
+        div[data-testid="stImage"] img:hover {
+            transform: scale(1.03);
         }
         
-        /* Soften the container borders */
-        div[data-testid="stVerticalBlock"] > div[style*="border"] {
+        /* Nicer containers with a hover glow effect */
+        div[data-testid="stVerticalBlockBorderWrapper"] {
             border-radius: 10px;
-            border-color: #2D3748 !important;
             background-color: #1A1C23;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+        div[data-testid="stVerticalBlockBorderWrapper"]:hover {
+            border-color: #9146FF !important; /* Twitch Purple Glow */
+            box-shadow: 0 4px 12px rgba(145, 70, 255, 0.15);
         }
     </style>
 """, unsafe_allow_html=True)
@@ -124,7 +131,6 @@ if page == "Dashboard":
     played_games = df[df['Status'] == 'Played']
     upcoming_all = df[df['Status'] == 'Upcoming'].copy()
     
-    # Left column slightly wider to accommodate the denser 6-col backlog grid
     dash_left, dash_right = st.columns([1.5, 1], gap="large")
     
     with dash_left:
@@ -176,7 +182,7 @@ if page == "Dashboard":
                 play_cols = st.columns(4)
                 for idx, (_, row) in enumerate(playing_games.iterrows()):
                     with play_cols[idx % 4]:
-                        with st.container(border=True):
+                        with st.container(border=True, height=400):
                             if pd.notna(row['Cover_URL']) and row['Cover_URL'] != "": 
                                 st.image(row['Cover_URL'], use_container_width=True)
                             st.write(f"**{row['Title']}**")
@@ -195,10 +201,11 @@ if page == "Dashboard":
             back_cols = st.columns(6)
             for idx, (_, row) in enumerate(backlog_games.iterrows()):
                 with back_cols[idx % 6]:
-                    with st.container(border=True):
+                    with st.container(border=True, height=380):
                         if pd.notna(row['Cover_URL']) and row['Cover_URL'] != "": 
                             st.image(row['Cover_URL'], use_container_width=True)
                         st.caption(f"**{row['Title']}**")
+                        st.caption(row['Platform']) # Added missing platform
                         if st.session_state.admin_pin_input == ADMIN_PIN:
                             if st.button("Play", key=f"start_{row['Title']}", use_container_width=True):
                                 df.loc[df['Title'] == row['Title'], 'Status'] = 'Playing'
@@ -219,10 +226,11 @@ if page == "Dashboard":
                 up_cols = st.columns(4) 
                 for index, (_, row) in enumerate(upcoming_all.iterrows()):
                     with up_cols[index % 4]: 
-                        with st.container(border=True):
+                        with st.container(border=True, height=380):
                             if pd.notna(row['Cover_URL']) and row['Cover_URL'] != "": 
                                 st.image(row['Cover_URL'], use_container_width=True)
                             st.caption(f"**{row['Title']}**")
+                            st.caption(f"{row['ReleaseDate']}") # Added missing release date
             elif view_mode == "Agenda":
                 upcoming_all['MonthYear'] = upcoming_all['DateObj'].dt.strftime('%B %Y').fillna('TBD')
                 for month, group in upcoming_all.groupby('MonthYear', sort=False):
@@ -322,7 +330,7 @@ elif page == "Rankings":
                 t10_cols = st.columns(5)
                 for idx, (_, row) in enumerate(top_10.iterrows()):
                     with t10_cols[idx % 5]:
-                        with st.container(border=True):
+                        with st.container(border=True, height=400):
                             st.markdown(f"**#{row['Rank']}**")
                             if pd.notna(row['Cover_URL']) and row['Cover_URL'] != "": 
                                 st.image(row['Cover_URL'], use_container_width=True)
