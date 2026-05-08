@@ -270,15 +270,34 @@ if page == "Dashboard":
             st.plotly_chart(fig2, use_container_width=True)
 
         with c_chart3:
-            valid_oc = played_games[played_games['OpenCritic'] > 0]
-            if not valid_oc.empty:
-                fig3 = px.scatter(valid_oc, x='OpenCritic', y='Base_Score', hover_name='Title', title="My Score vs Critics", labels={'OpenCritic': 'Critic Score', 'Base Score': 'My Score'}, range_x=[0,100], range_y=[0,10], template="plotly_dark")
-                fig3.add_shape(type="line", x0=0, y0=0, x1=100, y1=10, line=dict(color="gray", dash="dash"))
-                fig3.update_traces(marker=dict(color='#9146FF', size=10))
-                fig3.update_layout(margin=dict(t=40, b=10, l=10, r=10), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
-                st.plotly_chart(fig3, use_container_width=True)
-            else:
-                st.info("Score games with OpenCritic ratings to generate this chart.")
+            # Calculate average score per genre
+            genre_avg = played_games.groupby('Genre')['Base_Score'].mean().reset_index()
+            # Sort by score ascending=True so the highest score is at the top of the horizontal chart
+            genre_avg = genre_avg.sort_values(by='Base_Score', ascending=True) 
+            
+            fig3 = px.bar(
+                genre_avg, 
+                x='Base_Score', 
+                y='Genre', 
+                orientation='h', 
+                title="Avg Score by Genre", 
+                range_x=[0,10], 
+                template="plotly_dark"
+            )
+            
+            # Apply your signature purple accent
+            fig3.update_traces(marker_color='#9146FF')
+            
+            # Match the transparent professional styling
+            fig3.update_layout(
+                margin=dict(t=40, b=10, l=10, r=10), 
+                xaxis_title="Average Score",
+                yaxis_title=None,
+                paper_bgcolor='rgba(0,0,0,0)', 
+                plot_bgcolor='rgba(0,0,0,0)'
+            )
+            
+            st.plotly_chart(fig3, use_container_width=True)
     else:
         st.info("Finish and score some games to unlock your analytics dashboard!")
 
