@@ -97,7 +97,7 @@ def fetch_cover_art(title):
         return ""
     except: return ""
 
-# --- SIDEBAR NAVIGATION (LOGIC AT TOP, VISUALS AT BOTTOM) ---
+# --- SIDEBAR NAVIGATION ---
 st.sidebar.title("Menu")
 
 if "admin_pin_input" not in st.session_state:
@@ -124,7 +124,8 @@ if page == "Dashboard":
     played_games = df[df['Status'] == 'Played']
     upcoming_all = df[df['Status'] == 'Upcoming'].copy()
     
-    dash_left, dash_right = st.columns([1.2, 1], gap="large")
+    # Left column slightly wider to accommodate the denser 6-col backlog grid
+    dash_left, dash_right = st.columns([1.5, 1], gap="large")
     
     with dash_left:
         st.subheader("Currently Playing")
@@ -172,14 +173,18 @@ if page == "Dashboard":
                         st.rerun()
         else:
             if not playing_games.empty:
-                for idx, row in playing_games.iterrows():
-                    with st.container(border=True):
-                        col_t, col_b = st.columns([3, 1])
-                        col_t.write(f"**{row['Title']}** ({row['Platform']})")
-                        if st.session_state.admin_pin_input == ADMIN_PIN:
-                            if col_b.button("Finish", key=f"fin_{idx}", use_container_width=True):
-                                st.session_state.scoring_game = row['Title']
-                                st.rerun()
+                play_cols = st.columns(4)
+                for idx, (_, row) in enumerate(playing_games.iterrows()):
+                    with play_cols[idx % 4]:
+                        with st.container(border=True):
+                            if pd.notna(row['Cover_URL']) and row['Cover_URL'] != "": 
+                                st.image(row['Cover_URL'], use_container_width=True)
+                            st.write(f"**{row['Title']}**")
+                            st.caption(row['Platform'])
+                            if st.session_state.admin_pin_input == ADMIN_PIN:
+                                if st.button("Finish", key=f"fin_{row['Title']}", use_container_width=True):
+                                    st.session_state.scoring_game = row['Title']
+                                    st.rerun()
             else: st.info("You aren't currently playing anything.")
 
         st.write("") 
@@ -187,15 +192,18 @@ if page == "Dashboard":
         st.subheader("The Backlog")
         backlog_games = df[df['Status'] == 'Backlog']
         if not backlog_games.empty:
-            for idx, row in backlog_games.iterrows():
-                with st.container(border=True):
-                    col_t, col_b = st.columns([3, 1])
-                    col_t.write(f"**{row['Title']}** ({row['Platform']})")
-                    if st.session_state.admin_pin_input == ADMIN_PIN:
-                        if col_b.button("Play", key=f"start_{idx}", use_container_width=True):
-                            df.loc[df['Title'] == row['Title'], 'Status'] = 'Playing'
-                            save_database(df)
-                            st.rerun()
+            back_cols = st.columns(6)
+            for idx, (_, row) in enumerate(backlog_games.iterrows()):
+                with back_cols[idx % 6]:
+                    with st.container(border=True):
+                        if pd.notna(row['Cover_URL']) and row['Cover_URL'] != "": 
+                            st.image(row['Cover_URL'], use_container_width=True)
+                        st.caption(f"**{row['Title']}**")
+                        if st.session_state.admin_pin_input == ADMIN_PIN:
+                            if st.button("Play", key=f"start_{row['Title']}", use_container_width=True):
+                                df.loc[df['Title'] == row['Title'], 'Status'] = 'Playing'
+                                save_database(df)
+                                st.rerun()
         else:
             st.info("Your backlog is completely empty!")
 
@@ -208,13 +216,13 @@ if page == "Dashboard":
             st.write("") 
             
             if view_mode == "Grid":
-                cols = st.columns(5) 
-                for index, row in upcoming_all.reset_index().iterrows():
-                    with cols[index % 5]: 
+                up_cols = st.columns(4) 
+                for index, (_, row) in enumerate(upcoming_all.iterrows()):
+                    with up_cols[index % 4]: 
                         with st.container(border=True):
-                            if pd.notna(row['Cover_URL']) and row['Cover_URL'] != "": st.image(row['Cover_URL'], use_container_width=True)
-                            st.write(f"**{row['Title']}**")
-                            st.caption(f"{row['ReleaseDate']} | {row['Platform']}")
+                            if pd.notna(row['Cover_URL']) and row['Cover_URL'] != "": 
+                                st.image(row['Cover_URL'], use_container_width=True)
+                            st.caption(f"**{row['Title']}**")
             elif view_mode == "Agenda":
                 upcoming_all['MonthYear'] = upcoming_all['DateObj'].dt.strftime('%B %Y').fillna('TBD')
                 for month, group in upcoming_all.groupby('MonthYear', sort=False):
@@ -305,9 +313,30 @@ elif page == "Rankings":
         else:
             rv = played_games.sort_values(by='Base_Score', ascending=False).copy()
             rv.insert(0, 'Rank', range(1, len(rv) + 1))
-            cl_table = rv[['Rank', 'Title', 'Platform', 'ReleaseDate', 'Base_Score', 'OpenCritic']].rename(columns={'ReleaseDate': 'Year', 'Base_Score': 'My Score', 'OpenCritic': 'Critic'})
+            
             c_left, c_right = st.columns([2, 1], gap="large")
-            with c_left: st.dataframe(cl_table, hide_index=True, use_container_width=True)
+            with c_left: 
+                # Top 10 Grid
+                st.subheader("Top 10 Rankings")
+                top_10 = rv.head(10)
+                t10_cols = st.columns(5)
+                for idx, (_, row) in enumerate(top_10.iterrows()):
+                    with t10_cols[idx % 5]:
+                        with st.container(border=True):
+                            st.markdown(f"**#{row['Rank']}**")
+                            if pd.notna(row['Cover_URL']) and row['Cover_URL'] != "": 
+                                st.image(row['Cover_URL'], use_container_width=True)
+                            st.caption(f"**{row['Title']}**")
+                
+                st.divider()
+                st.subheader("11 & Beyond")
+                rest_of_games = rv.iloc[10:]
+                if not rest_of_games.empty:
+                    cl_table = rest_of_games[['Rank', 'Title', 'Platform', 'ReleaseDate', 'Base_Score', 'OpenCritic']].rename(columns={'ReleaseDate': 'Year', 'Base_Score': 'My Score', 'OpenCritic': 'Critic'})
+                    st.dataframe(cl_table, hide_index=True, use_container_width=True)
+                else:
+                    st.info("Score more games to fill out the table.")
+
             with c_right:
                 st.subheader("Inspector")
                 sq = st.selectbox("Deep dive breakdown:", ["-- Select a game --"] + rv['Title'].tolist(), label_visibility="collapsed")
