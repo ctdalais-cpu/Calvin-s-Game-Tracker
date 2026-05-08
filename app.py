@@ -13,7 +13,7 @@ ADMIN_PIN = st.secrets["ADMIN_PIN"]
 
 st.set_page_config(page_title="Game Hub Pro", layout="wide", initial_sidebar_state="expanded")
 
-# --- 2. THE CLEAN AESTHETIC (CSS) ---
+# --- 2. THE DENSE AESTHETIC (CSS) ---
 st.markdown("""
     <style>
         .stApp {
@@ -21,34 +21,44 @@ st.markdown("""
             color: #E2E8F0;
         }
         
+        /* Force containers to be compact */
         div[data-testid="stVerticalBlock"] > div[style*="border"] {
             background: rgba(255, 255, 255, 0.02);
             backdrop-filter: blur(8px);
-            border-radius: 12px;
+            border-radius: 8px;
             border: 1px solid rgba(255, 255, 255, 0.08) !important;
-            padding: 12px;
+            padding: 10px !important;
+            margin-bottom: 10px;
         }
 
+        /* Prevent images from ballooning in size */
+        [data-testid="stImage"] img {
+            max-width: 160px;
+            margin-left: auto;
+            margin-right: auto;
+            display: block;
+            border-radius: 4px;
+        }
+
+        /* Compact Metrics */
         div[data-testid="stMetricValue"] { 
-            font-size: 2rem; 
+            font-size: 1.6rem; 
             font-weight: 800; 
             color: #FFFFFF; 
-            letter-spacing: -1px;
         }
         
         div[data-testid="stMetricLabel"] {
-            color: #94A3B8;
-            text-transform: uppercase;
-            font-size: 0.75rem;
+            font-size: 0.7rem;
             letter-spacing: 1px;
-        }
-        
-        img {
-            border-radius: 4px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
         }
 
         #MainMenu, footer, header {visibility: hidden;}
+        
+        /* Reduce gap between elements */
+        .block-container {
+            padding-top: 2rem;
+            padding-bottom: 0rem;
+        }
     </style>
 """, unsafe_allow_html=True)
 
@@ -61,8 +71,7 @@ sheet = gc.open("Game Tracker Database").sheet1
 records = sheet.get_all_records()
 if records:
     df = pd.DataFrame(records)
-    # Ensure Score and Numeric columns are numeric types
-    for col in ['Base_Score', 'OpenCritic', 'Elo_Rating']:
+    for col in ['Base_Score', 'OpenCritic']:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
 else:
@@ -96,74 +105,70 @@ page = st.sidebar.radio("Navigation", pages)
 
 # --- 5. PAGE: DASHBOARD ---
 if page == "Dashboard":
-    st.markdown("<h2 style='letter-spacing:-1px;'>COMMAND CENTER</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='letter-spacing:-1px; margin-bottom: 0;'>COMMAND CENTER</h2>", unsafe_allow_html=True)
     
     played_games = df[df['Status'] == 'Played']
     playing_games = df[df['Status'] == 'Playing']
     backlog_games = df[df['Status'] == 'Backlog']
     upcoming_games = df[df['Status'] == 'Upcoming'].copy()
     
-    col_main, col_side = st.columns([2, 1], gap="medium")
+    col_main, col_side = st.columns([2.5, 1], gap="small")
     
     with col_main:
-        st.markdown("### CURRENTLY PLAYING")
+        st.markdown("##### CURRENTLY PLAYING")
         if not playing_games.empty:
-            p_cols = st.columns(3)
+            p_cols = st.columns(4) # Increased density
             for i, (idx, row) in enumerate(playing_games.iterrows()):
-                with p_cols[i % 3]:
+                with p_cols[i % 4]:
                     with st.container(border=True):
-                        if row['Cover_URL']: st.image(row['Cover_URL'], width="stretch")
-                        st.markdown(f"**{row['Title']}**")
-                        st.caption(row['Platform'])
+                        if row['Cover_URL']: st.image(row['Cover_URL'], width=140)
+                        st.markdown(f"<p style='font-size:0.85rem; font-weight:bold; text-align:center; margin-bottom:0;'>{row['Title']}</p>", unsafe_allow_html=True)
                         if st.session_state.admin_pin_input == ADMIN_PIN:
                             if st.button("FINISH", key=f"fin_{idx}", width="stretch"):
                                 st.session_state.scoring_game = row['Title']; st.rerun()
-        else: st.info("Nothing currently active.")
+        else: st.info("No active games.")
 
-        st.markdown("### BACKLOG")
+        st.markdown("##### BACKLOG")
         if not backlog_games.empty:
-            b_cols = st.columns(4)
+            b_cols = st.columns(5) # Higher density for backlog
             for i, (idx, row) in enumerate(backlog_games.iterrows()):
-                with b_cols[i % 4]:
+                with b_cols[i % 5]:
                     with st.container(border=True):
-                        if row['Cover_URL']: st.image(row['Cover_URL'], width="stretch")
-                        st.markdown(f"<p style='font-size:0.8rem; font-weight:bold; margin-bottom:0;'>{row['Title']}</p>", unsafe_allow_html=True)
+                        if row['Cover_URL']: st.image(row['Cover_URL'], width=120)
+                        st.markdown(f"<p style='font-size:0.75rem; text-align:center;'>{row['Title']}</p>", unsafe_allow_html=True)
                         if st.session_state.admin_pin_input == ADMIN_PIN:
                             if st.button("PLAY", key=f"bl_{idx}", width="stretch"):
                                 df.loc[df['Title'] == row['Title'], 'Status'] = 'Playing'
                                 save_database(df); st.rerun()
         
     with col_side:
-        st.markdown("### UPCOMING")
+        st.markdown("##### UPCOMING")
         if not upcoming_games.empty:
             upcoming_games['DateObj'] = pd.to_datetime(upcoming_games['ReleaseDate'], errors='coerce')
             upcoming_games = upcoming_games.sort_values('DateObj')
             u_cols = st.columns(2)
-            # FIXED: Corrected variable name from upcoming_all to upcoming_games
             for i, (_, row) in enumerate(upcoming_games.head(6).iterrows()):
                 with u_cols[i % 2]:
                     with st.container(border=True):
-                        if row['Cover_URL']: st.image(row['Cover_URL'], width="stretch")
+                        if row['Cover_URL']: st.image(row['Cover_URL'], width=110)
                         st.markdown(f"<p style='font-size:0.75rem; font-weight:bold; margin-bottom:0;'>{row['Title']}</p>", unsafe_allow_html=True)
                         st.markdown(f"<p style='font-size:0.7rem; color:#9146FF;'>{row['ReleaseDate']}</p>", unsafe_allow_html=True)
 
-    # --- INFOGRAPHICS (TRANSPARENT) ---
+    # --- INFOGRAPHICS ---
     st.divider()
     if not played_games.empty:
-        st.markdown("### ANALYTICS")
         c1, c2, c3 = st.columns(3)
-        
         chart_layout = dict(
             paper_bgcolor='rgba(0,0,0,0)',
             plot_bgcolor='rgba(0,0,0,0)',
-            margin=dict(t=40, b=20, l=20, r=20),
-            font=dict(color="white"),
+            margin=dict(t=30, b=10, l=10, r=10),
+            font=dict(color="white", size=10),
             xaxis=dict(showgrid=False),
             yaxis=dict(showgrid=False)
         )
 
         with c1:
-            fig1 = px.pie(played_games, names='Genre', hole=0.5, title="GENRE DISTRO", template="plotly_dark")
+            fig1 = px.pie(played_games, names='Genre', hole=0.6, title="GENRE DISTRO", template="plotly_dark")
             fig1.update_layout(chart_layout)
             st.plotly_chart(fig1, width="stretch")
         with c2:
@@ -175,11 +180,11 @@ if page == "Dashboard":
             st.plotly_chart(fig2, width="stretch")
         with c3:
             fig3 = px.scatter(played_games, x='OpenCritic', y='Base_Score', hover_name='Title', title="VS CRITICS", template="plotly_dark")
-            fig3.update_traces(marker=dict(size=12, color='#9146FF'))
+            fig3.update_traces(marker=dict(size=10, color='#9146FF'))
             fig3.update_layout(chart_layout)
             st.plotly_chart(fig3, width="stretch")
 
-    # --- STATS AT BOTTOM ---
+    # --- STATS ---
     st.divider()
     m1, m2, m3, m4 = st.columns(4)
     m1.metric("Completed", len(played_games))
@@ -187,7 +192,7 @@ if page == "Dashboard":
     m3.metric("Backlog", len(backlog_games))
     m4.metric("Next", upcoming_games.iloc[0]['Title'] if not upcoming_games.empty else "TBD")
 
-# --- RANKINGS ---
+# --- OTHER PAGES ---
 elif page == "Rankings":
     st.markdown("## HALL OF FAME")
     played = df[df['Status'] == 'Played'].sort_values('Base_Score', ascending=False)
@@ -197,19 +202,18 @@ elif page == "Rankings":
         for i, (_, row) in enumerate(top_3.iterrows()):
             with cols[i]:
                 with st.container(border=True):
-                    if row['Cover_URL']: st.image(row['Cover_URL'], width="stretch")
+                    if row['Cover_URL']: st.image(row['Cover_URL'], width=180)
                     st.markdown(f"<h3 style='text-align:center;'>{row['Base_Score']}</h3>", unsafe_allow_html=True)
-                    st.markdown(f"<p style='text-align:center;'>{row['Title']}</p>", unsafe_allow_html=True)
+                    st.markdown(f"<p style='text-align:center; font-size:0.9rem;'>{row['Title']}</p>", unsafe_allow_html=True)
         st.divider()
         st.dataframe(played[['Title', 'Platform', 'Base_Score', 'OpenCritic']], width="stretch", hide_index=True)
 
-# --- ADMIN ---
 elif page == "Add Game":
     with st.form("add"):
         t = st.text_input("Title")
         p = st.text_input("Platform")
         st_select = st.selectbox("Status", ["Backlog", "Playing", "Upcoming"])
-        if st.form_submit_button("Save"):
+        if st.form_submit_button("Save Game"):
             url = fetch_cover_art(t)
             new_row = {'Title': t, 'Platform': p, 'Status': st_select, 'Cover_URL': url, 'ReleaseDate': str(datetime.date.today()), 'Base_Score': 0}
             df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
