@@ -317,13 +317,13 @@ if page == "Dashboard":
         else: 
             st.metric("Next Release", "None Scheduled")
 
-# --- PAGE 2: RANKINGS ---
 # --- PAGE 2: RANKINGS (COMPACT COLLECTION) ---
 elif page == "Rankings":
     st.title("Collection")
     
     played_games = df[df['Status'] == 'Played'].copy()
     
+    # 1. CHECK IF GAMES EXIST
     if not played_games.empty:
         c_filter, c_search = st.columns([1, 3])
         with c_filter:
@@ -332,6 +332,7 @@ elif page == "Rankings":
         with c_search:
             search_query = st.text_input("Search", placeholder="Search titles...", label_visibility="collapsed")
 
+        # 2. APPLY FILTERS
         if sel_year != "All Time":
             played_games = played_games[played_games['ReleaseDate'] == sel_year]
         if search_query:
@@ -343,7 +344,7 @@ elif page == "Rankings":
         if rv.empty:
             st.info("No games found.")
         else:
-            # 10 COLUMNS PER ROW
+            # 3. RENDER THE 10-COLUMN GRID
             cols_per_row = 10
             rows = [rv.iloc[i:i + cols_per_row] for i in range(0, len(rv), cols_per_row)]
 
@@ -351,80 +352,59 @@ elif page == "Rankings":
                 cols = st.columns(cols_per_row)
                 for i, (idx, game) in enumerate(row_data.iterrows()):
                     with cols[i]:
-                        # We use a button that looks like a card
                         if game['Cover_URL']:
                             st.image(game['Cover_URL'])
                         else:
                             st.image("https://via.placeholder.com/150x200?text=No+Cover")
                         
-                        # Compact Title & Rank
                         st.markdown(f"<div class='small-text'><b>#{game['Rank']}</b> {game['Title']}</div>", unsafe_allow_html=True)
-                        
-                        # High-Contrast Score
                         st.markdown(f"<div style='color:#9146FF; font-weight:bold; font-size:0.9rem;'>{game['Base_Score']:.1f}</div>", unsafe_allow_html=True)
                         
-                        # Small Detail Trigger
-                        if st.button("🔎", key=f"det_{idx}", use_container_width=True, help="Click for Full Stats"):
+                        if st.button("🔎", key=f"det_{idx}", use_container_width=True):
                             st.session_state.inspect_game = game['Title']
             
-            # INSPECTOR (Same as before, stays beneath the grid)
+            # 4. THE INSPECTOR (Only shows if a game is clicked)
             if 'inspect_game' in st.session_state:
                 st.divider()
-                gd = rv[rv['Title'] == st.session_state.inspect_game].iloc[0]
-                
-                i_col1, i_col2 = st.columns([1, 4])
-                with i_col1:
-                    st.image(gd['Cover_URL'], use_container_width=True)
-                    if st.button("Close X", use_container_width=True):
-                        del st.session_state.inspect_game
-                        st.rerun()
-                with i_col2:
-                    st.header(gd['Title'])
-                    st.subheader(f"Rank #{gd['Rank']} | Score: {gd['Base_Score']:.1f}")
-                    
-                    m1, m2, m3, m4, m5, m6 = st.columns(6)
-                    m1.metric("Gameplay", gd['S_Gameplay'])
-                    m2.metric("Visuals", gd['S_Visuals'])
-                    m3.metric("Audio", gd['S_Audio'])
-                    m4.metric("Fun", gd['S_Fun'])
-                    m5.metric(gd['Bonus_1_Name'], gd['S_Bonus_1'])
-                    m6.metric(gd['Bonus_2_Name'], gd['S_Bonus_2'])
-
-    else:
-        st.info("Your collection is currently empty.")
-
-            # THE MODAL-STYLE INSPECTOR (Appears if "Details" is clicked)
-        if 'inspect_game' in st.session_state:
-                st.divider()
                 st.subheader(f"Deep Dive: {st.session_state.inspect_game}")
-                gd = rv[rv['Title'] == st.session_state.inspect_game].iloc[0]
                 
-                # Close button
-                if st.button("Close Inspector"):
+                # Check if the game is actually in our current (filtered) list
+                inspect_list = rv[rv['Title'] == st.session_state.inspect_game]
+                
+                if not inspect_list.empty:
+                    gd = inspect_list.iloc[0]
+                    
+                    det_left, det_mid, det_right = st.columns([1, 1.5, 1.5])
+                    with det_left:
+                        st.image(gd['Cover_URL'], use_container_width=True)
+                        if st.button("Close Inspector", use_container_width=True):
+                            del st.session_state.inspect_game
+                            st.rerun()
+                    with det_mid:
+                        st.metric("Final Score", f"{gd['Base_Score']:.1f}")
+                        st.write(f"**Gameplay:** {gd['S_Gameplay']}/10")
+                        st.write(f"**Visuals:** {gd['S_Visuals']}/10")
+                        st.write(f"**Audio:** {gd['S_Audio']}/10")
+                    with det_right:
+                        st.metric("Elo Rating", int(gd['Elo_Rating']))
+                        st.write(f"**Fun Factor:** {gd['S_Fun']}/10")
+                        st.write(f"**{gd['Bonus_1_Name']}:** {gd['S_Bonus_1']}/10")
+                        st.write(f"**{gd['Bonus_2_Name']}:** {gd['S_Bonus_2']}/10")
+                else:
+                    # Clear it if the game was filtered out
                     del st.session_state.inspect_game
-                    st.rerun()
-
-                det_left, det_mid, det_right = st.columns([1, 1.5, 1.5])
-                with det_left:
-                    st.image(gd['Cover_URL'], use_container_width=True)
-                with det_mid:
-                    st.metric("Final Score", f"{gd['Base_Score']:.1f}")
-                    st.write(f"**Gameplay:** {gd['S_Gameplay']}/10")
-                    st.write(f"**Visuals:** {gd['S_Visuals']}/10")
-                    st.write(f"**Audio:** {gd['S_Audio']}/10")
-                with det_right:
-                    st.metric("Elo Rating", int(gd['Elo_Rating']))
-                    st.write(f"**Fun Factor:** {gd['S_Fun']}/10")
-                    st.write(f"**{gd['Bonus_1_Name']}:** {gd['S_Bonus_1']}/10")
-                    st.write(f"**{gd['Bonus_2_Name']}:** {gd['S_Bonus_2']}/10")
 
     else:
         st.info("You haven't finished any games to rank yet! Go beat something.")
 
+    # 5. DNF GRAVEYARD (Always at bottom)
     st.write("")
     with st.expander("View DNF Graveyard"):
-        if not df[df['Status'] == 'DNF'].empty: st.dataframe(df[df['Status'] == 'DNF'][['Title', 'Platform', 'ReleaseDate']], hide_index=True, use_container_width=True)
-        else: st.write("No abandoned games yet.")
+        dnf_df = df[df['Status'] == 'DNF']
+        if not dnf_df.empty: 
+            st.dataframe(dnf_df[['Title', 'Platform', 'ReleaseDate']], hide_index=True, use_container_width=True)
+        else: 
+            st.write("No abandoned games yet.")
 
 # --- PAGE 3: ADD GAME (ADMIN ONLY) ---
 elif page == "Add Game" and st.session_state.admin_pin_input == ADMIN_PIN:
