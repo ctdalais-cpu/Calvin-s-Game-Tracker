@@ -40,6 +40,20 @@ st.markdown("""
             border-color: #2D3748 !important;
             background-color: #1A1C23;
         }
+        /* THE POSTER FIX: Forces uniform size and crops images to fit */
+        [data-testid="stImage"] img {
+            width: 100%;
+            height: 160px; /* Fixed height for the row */
+            object-fit: cover; /* This is the "magic" crop */
+            border-radius: 4px;
+        }
+
+        /* Shrink text for the 10-column view */
+        .small-text {
+            font-size: 0.8rem !important;
+            line-height: 1.2;
+        }
+    </style>
     </style>
 """, unsafe_allow_html=True)
 
