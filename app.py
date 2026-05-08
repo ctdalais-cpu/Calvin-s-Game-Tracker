@@ -16,44 +16,37 @@ st.set_page_config(page_title="Game Tracker", layout="wide", initial_sidebar_sta
 # --- CUSTOM CSS: THE PROFESSIONAL UPGRADE ---
 st.markdown("""
     <style>
-        /* Hide Streamlit Branding */
+        /* 1. HIDE BRANDING */
         #MainMenu {visibility: hidden;}
         footer {visibility: hidden;}
         header {visibility: hidden;}
         
-        /* Dashboard Metric Sizing */
-        div[data-testid="stMetricValue"] { font-size: 2.2rem; font-weight: 700; }
-        div[data-testid="stSidebarNav"] { padding-top: 2rem; }
-        
-        /* Subtly round image corners and add a hover lift effect */
-        img {
-            border-radius: 8px;
-            transition: transform 0.2s ease-in-out;
-        }
-        img:hover {
-            transform: scale(1.02);
-        }
-        
-        /* Soften the container borders */
-        div[data-testid="stVerticalBlock"] > div[style*="border"] {
-            border-radius: 10px;
-            border-color: #2D3748 !important;
-            background-color: #1A1C23;
-        }
-        /* THE POSTER FIX: Forces uniform size and crops images to fit */
-        [data-testid="stImage"] img {
-            width: 150px;
-            height: 450px; /* Fixed height for the row */
-            object-fit: cover; /* This is the "magic" crop */
-            border-radius: 4px;
+        /* 2. THE IMAGE ENGINE */
+        /* This forces EVERY image in a container to be the same height and crop */
+        [data-testid="stVerticalBlockBorderWrapper"] img {
+            width: 100% !important;
+            height: 320px !important; /* Fixed height for a 'poster' look */
+            object-fit: cover !important; /* Crops the sides/top to fill the box */
+            object-position: center !important;
+            border-radius: 8px 8px 0 0 !important;
         }
 
-        /* Shrink text for the 10-column view */
-        .small-text {
-            font-size: 0.8rem !important;
-            line-height: 1.2;
+        /* 3. THE CARD ENGINE */
+        /* This ensures the boxes themselves are identical in height */
+        div[data-testid="stVBlock"] > div {
+            background-color: #1A1C23;
+            border-radius: 10px;
         }
-    </style>
+        
+        /* Dashboard-specific: smaller images for the 'Upcoming' sidebar */
+        /* We can target the sidebar columns to be shorter if needed */
+        .upcoming-container img {
+            height: 180px !important;
+        }
+
+        /* 4. TYPOGRAPHY CLEANUP */
+        div[data-testid="stMetricValue"] { font-size: 1.8rem; font-weight: 700; color: #9146FF; }
+        .game-title { font-weight: bold; margin-top: 10px; display: block; height: 45px; overflow: hidden; }
     </style>
 """, unsafe_allow_html=True)
 
