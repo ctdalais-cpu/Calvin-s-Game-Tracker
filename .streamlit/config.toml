@@ -1,11 +1,11 @@
 [theme]
-# Electric Teal accent for high-energy interaction
-primaryColor = "#81E6D9"
+# Vivid amethyst purple for a sleek, modern brand feel
+primaryColor = "#A855F7"
 
-# Deep midnight and navy for a crisp, cool-toned dark mode
-backgroundColor = "#0F172A"
-secondaryBackgroundColor = "#1E293B"
+# Deep ink and charcoal tones that lean into the purple spectrum
+backgroundColor = "#110C1D"
+secondaryBackgroundColor = "#1C1929"
 
-# High-contrast white-smoke for maximum legibility
-textColor = "#F8FAFC"
-font = "Inter, sans-serif"
+# Cool-toned gray-blue text to reduce eye strain
+textColor = "#CBD5E1"
+font = "Plus Jakarta Sans, sans-serif"
