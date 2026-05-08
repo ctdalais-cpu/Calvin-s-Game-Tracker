@@ -4,7 +4,6 @@ import datetime
 import requests
 import gspread
 from google.oauth2.service_account import Credentials
-import plotly.express as px
 
 # --- API CREDENTIALS ---
 CLIENT_ID = st.secrets["TWITCH_CLIENT_ID"]
@@ -13,31 +12,10 @@ ADMIN_PIN = st.secrets["ADMIN_PIN"]
 
 st.set_page_config(page_title="Game Tracker", layout="wide", initial_sidebar_state="expanded")
 
-# --- CUSTOM CSS: THE PROFESSIONAL UPGRADE ---
 st.markdown("""
     <style>
-        /* Hide Streamlit Branding */
-        #MainMenu {visibility: hidden;}
-        footer {visibility: hidden;}
-        header {visibility: hidden;}
-        
-        /* THE IMAGE FIXED-RATIO CROP */
-        [data-testid="stImage"] img {
-            width: 100%;
-            height: 280px; /* Fixed height for 5-column layout */
-            object-fit: cover; /* Crops image to fill the box without stretching */
-            border-radius: 8px 8px 0 0;
-        }
-
-        /* Standardize Card Height */
-        [data-testid="stVerticalBlock"] > div[style*="border"] {
-            min-height: 440px; /* Ensures all cards stay the same length */
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-        }
-
-        div[data-testid="stMetricValue"] { font-size: 2.2rem; font-weight: 700; }
+        div[data-testid="stMetricValue"] { font-size: 2rem; }
+        div[data-testid="stSidebarNav"] { padding-top: 2rem; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -95,45 +73,48 @@ def fetch_cover_art(title):
         return ""
     except: return ""
 
-# --- SIDEBAR NAVIGATION (LOGIC AT TOP, VISUALS AT BOTTOM) ---
+# --- SIDEBAR NAVIGATION ---
 st.sidebar.title("🎮 Game Tracker")
-st.sidebar.markdown("<br>", unsafe_allow_html=True)
-
-# 1. State Memory for PIN
-if "admin_pin_input" not in st.session_state:
-    st.session_state.admin_pin_input = ""
+st.sidebar.divider()
 
 available_pages = ["Dashboard", "Rankings"]
+st.sidebar.write("---")
+user_pin = st.sidebar.text_input("Admin Passcode:", type="password")
 
-# 2. Check Permissions
-if st.session_state.admin_pin_input == ADMIN_PIN:
+if user_pin == ADMIN_PIN:
     available_pages.extend(["Add Game", "The Arena", "Edit Database"])
-
-# 3. Render Navigation
-page = st.sidebar.radio("Navigation", available_pages, label_visibility="collapsed")
-
-# 4. Push PIN Input to the very bottom
-st.sidebar.markdown("<br>" * 10, unsafe_allow_html=True)
-st.sidebar.divider()
-st.sidebar.text_input("Admin Access", type="password", key="admin_pin_input", placeholder="Enter PIN...")
-
-if st.session_state.admin_pin_input != "" and st.session_state.admin_pin_input != ADMIN_PIN:
+elif user_pin != "":
     st.sidebar.error("Incorrect Passcode")
+
+page = st.sidebar.radio("Navigation", available_pages, label_visibility="collapsed")
 
 # --- PAGE 1: DASHBOARD ---
 if page == "Dashboard":
     st.title("Dashboard")
-    
     played_games = df[df['Status'] == 'Played']
     upcoming_all = df[df['Status'] == 'Upcoming'].copy()
     
+    col_m1, col_m2, col_m3 = st.columns(3)
+    with col_m1: st.metric("Completed Games", len(played_games))
+    with col_m2:
+        avg_score = played_games['Base_Score'].mean() if not played_games.empty else 0
+        st.metric("Average Score", f"{avg_score:.1f}")
+    with col_m3:
+        if not upcoming_all.empty:
+            upcoming_all['DateObj'] = pd.to_datetime(upcoming_all['ReleaseDate'], errors='coerce')
+            future_games = upcoming_all[upcoming_all['DateObj'] >= pd.Timestamp(datetime.date.today())]
+            next_game = future_games.sort_values(by='DateObj').iloc[0]['Title'] if not future_games.empty else "None Scheduled"
+            st.metric("Next Release", next_game)
+        else: st.metric("Next Release", "None Scheduled")
+            
+    st.divider()
     dash_left, dash_right = st.columns([1.2, 1], gap="large")
     
     with dash_left:
         st.subheader("Currently Playing")
         playing_games = df[df['Status'] == 'Playing']
         
-        if 'scoring_game' in st.session_state and st.session_state.admin_pin_input == ADMIN_PIN:
+        if 'scoring_game' in st.session_state and user_pin == ADMIN_PIN:
             finish_target = st.session_state.scoring_game
             target_data = playing_games[playing_games['Title'] == finish_target].iloc[0]
             st.markdown(f"**Finish:** {finish_target}")
@@ -179,341 +160,99 @@ if page == "Dashboard":
                     with st.container(border=True):
                         col_t, col_b = st.columns([3, 1])
                         col_t.write(f"**{row['Title']}** ({row['Platform']})")
-                        if st.session_state.admin_pin_input == ADMIN_PIN:
+                        if user_pin == ADMIN_PIN:
                             if col_b.button("Finish", key=f"fin_{idx}", use_container_width=True):
                                 st.session_state.scoring_game = row['Title']
                                 st.rerun()
             else: st.info("You aren't currently playing anything.")
-
-        st.write("") 
-        
-        st.subheader("The Backlog")
-        backlog_games = df[df['Status'] == 'Backlog']
-        if not backlog_games.empty:
-            for idx, row in backlog_games.iterrows():
-                with st.container(border=True):
-                    col_t, col_b = st.columns([3, 1])
-                    col_t.write(f"**{row['Title']}** ({row['Platform']})")
-                    if st.session_state.admin_pin_input == ADMIN_PIN:
-                        if col_b.button("Play", key=f"start_{idx}", use_container_width=True):
-                            df.loc[df['Title'] == row['Title'], 'Status'] = 'Playing'
-                            save_database(df)
-                            st.rerun()
-        else:
-            st.info("Your backlog is completely empty!")
 
     with dash_right:
         st.subheader("Upcoming Releases")
         if not upcoming_all.empty:
             upcoming_all['DateObj'] = pd.to_datetime(upcoming_all['ReleaseDate'], errors='coerce')
             upcoming_all = upcoming_all.sort_values(by='DateObj')
-            view_mode = st.radio("Display Mode:", ["Grid", "Agenda"], horizontal=True, label_visibility="collapsed")
-            st.write("") 
-            
-            if view_mode == "Grid":
-                cols = st.columns(5) 
-                for index, row in upcoming_all.reset_index().iterrows():
-                    with cols[index % 5]: 
-                        with st.container(border=True):
-                            if pd.notna(row['Cover_URL']) and row['Cover_URL'] != "": st.image(row['Cover_URL'], use_container_width=True)
-                            st.write(f"**{row['Title']}**")
-                            st.caption(f"{row['ReleaseDate']} | {row['Platform']}")
-            elif view_mode == "Agenda":
-                upcoming_all['MonthYear'] = upcoming_all['DateObj'].dt.strftime('%B %Y').fillna('TBD')
-                for month, group in upcoming_all.groupby('MonthYear', sort=False):
-                    st.markdown(f"**{month}**")
-                    for _, row in group.iterrows():
-                        st.write(f"{row['ReleaseDate']} — {row['Title']} ({row['Platform']})")
-                    st.divider()
+            cols = st.columns(5) 
+            for index, row in upcoming_all.reset_index().iterrows():
+                with cols[index % 5]: 
+                    with st.container(border=True):
+                        if pd.notna(row['Cover_URL']) and row['Cover_URL'] != "": st.image(row['Cover_URL'], use_container_width=True)
+                        st.write(f"**{row['Title']}**")
+                        st.caption(f"{row['ReleaseDate']}")
         else: st.info("No upcoming releases tracked.")
 
-        if st.session_state.admin_pin_input == ADMIN_PIN:
-            with st.expander("Quick Add Upcoming"):
-                with st.form("quick_up"):
-                    t = st.text_input("Title")
-                    c1, c2 = st.columns(2)
-                    with c1: p = st.text_input("Platform")
-                    with c2: d = st.date_input("Exact Date", datetime.date.today())
-                    h = st.slider("Hype Level", 1, 5, 3)
-                    if st.form_submit_button("Add to Calendar"):
-                        with st.spinner("Fetching cover art..."): url = fetch_cover_art(t)
-                        new_up = pd.DataFrame([{'Title': t, 'Status': 'Upcoming', 'ReleaseDate': d.strftime('%Y-%m-%d'), 'Platform': p, 'Hype': h, 'Genre': 'TBD', 'Base_Score': 0, 'OpenCritic': 0, 'Elo_Rating': 0, 'Cover_URL': url, 'S_Gameplay': 0, 'S_Visuals': 0, 'S_Audio': 0, 'S_Fun': 0, 'Bonus_1_Name': 'TBD', 'S_Bonus_1': 0, 'Bonus_2_Name': 'TBD', 'S_Bonus_2': 0}])
-                        df = pd.concat([df, new_up], ignore_index=True)
-                        save_database(df)
-                        st.rerun()
-
- # --- SECTION: ANALYTICS DASHBOARD ---
-    st.divider()
-    st.subheader("Data & Insights")
-    
-    if len(played_games) > 0:
-        c_chart1, c_chart2, c_chart3 = st.columns(3)
-        
-        with c_chart1:
-            genre_counts = played_games['Genre'].value_counts().reset_index()
-            genre_counts.columns = ['Genre', 'Count']
-            fig1 = px.pie(genre_counts, values='Count', names='Genre', title="Most Played Genres", hole=0.4, template="plotly_dark")
-            
-            # The labels you wanted!
-            fig1.update_traces(textinfo='label', textposition='inside')
-            
-            fig1.update_layout(margin=dict(t=40, b=10, l=10, r=10), showlegend=False, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
-            st.plotly_chart(fig1, use_container_width=True)
-
-        with c_chart2:
-            # Bar Chart: Avg Score by Year
-            played_games['Year'] = played_games['ReleaseDate'].astype(str).str[:4]
-            yearly_avg = played_games.groupby('Year')['Base_Score'].mean().reset_index()
-            fig2 = px.bar(yearly_avg, x='Year', y='Base_Score', title="Avg Score by Release Year", range_y=[0,10], template="plotly_dark")
-            fig2.update_traces(marker_color='#9146FF') 
-            fig2.update_layout(margin=dict(t=40, b=10, l=10, r=10), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
-            st.plotly_chart(fig2, use_container_width=True)
-
-        with c_chart3:
-            # Scatter Plot: My Score vs Critic
-            valid_oc = played_games[played_games['OpenCritic'] > 0]
-            if not valid_oc.empty:
-                fig3 = px.scatter(valid_oc, x='OpenCritic', y='Base_Score', hover_name='Title', title="My Score vs Critics", labels={'OpenCritic': 'Critic Score', 'Base_Score': 'My Score'}, range_x=[0,100], range_y=[0,10], template="plotly_dark")
-                fig3.add_shape(type="line", x0=0, y0=0, x1=100, y1=10, line=dict(color="gray", dash="dash"))
-                fig3.update_traces(marker=dict(color='#9146FF', size=10))
-                fig3.update_layout(margin=dict(t=40, b=10, l=10, r=10), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
-                st.plotly_chart(fig3, use_container_width=True)
-            else:
-                st.info("Score games with OpenCritic ratings to generate this chart.")
-    else:
-        st.info("Finish and score some games to unlock your analytics dashboard!")
-
-    st.write("")
-    st.subheader("At a Glance")
-    col_m1, col_m2, col_m3 = st.columns(3)
-    
-    with col_m1: 
-        st.metric("Completed Games", len(played_games))
-    with col_m2:
-        avg_score = played_games['Base_Score'].mean() if not played_games.empty else 0
-        st.metric("Average Score", f"{avg_score:.1f}")
-    with col_m3:
-        if not upcoming_all.empty:
-            upcoming_all['DateObj'] = pd.to_datetime(upcoming_all['ReleaseDate'], errors='coerce')
-            future_games = upcoming_all[upcoming_all['DateObj'] >= pd.Timestamp(datetime.date.today())]
-            next_game = future_games.sort_values(by='DateObj').iloc[0]['Title'] if not future_games.empty else "None Scheduled"
-            st.metric("Next Release", next_game)
-        else: 
-            st.metric("Next Release", "None Scheduled")
-
-# --- PAGE 2: RANKINGS (THE GALLERY) ---
+# --- PAGE 2: RANKINGS ---
 elif page == "Rankings":
-    st.title("Collection")
-    
+    st.title("Overall Rankings")
     played_games = df[df['Status'] == 'Played'].copy()
-    
     if not played_games.empty:
-        # Search and Filter bar
-        c_filter, c_search = st.columns([1, 3])
-        with c_filter:
-            av_years = sorted(played_games['ReleaseDate'].unique().tolist(), reverse=True)
-            sel_year = st.selectbox("Year", ["All Time"] + av_years, label_visibility="collapsed")
-        with c_search:
-            search_query = st.text_input("Search", placeholder="Search your collection...", label_visibility="collapsed")
-
-        # Apply Filters
-        if sel_year != "All Time":
-            played_games = played_games[played_games['ReleaseDate'] == sel_year]
-        if search_query:
-            played_games = played_games[played_games['Title'].str.contains(search_query, case=False)]
-
         rv = played_games.sort_values(by='Base_Score', ascending=False).copy()
         rv.insert(0, 'Rank', range(1, len(rv) + 1))
-
-        if rv.empty:
-            st.info("No games found.")
-        else:
-            # 5 COLUMNS PER ROW (Visual Sweet Spot)
-            cols_per_row = 5
-            rows = [rv.iloc[i:i + cols_per_row] for i in range(0, len(rv), cols_per_row)]
-
-            for row_data in rows:
-                cols = st.columns(cols_per_row)
-                for i, (idx, game) in enumerate(row_data.iterrows()):
-                    with cols[i]:
-                        with st.container(border=True):
-                            if game['Cover_URL']:
-                                st.image(game['Cover_URL'])
-                            else:
-                                st.image("https://via.placeholder.com/200x280?text=No+Cover")
-                            
-                            # Info Section
-                            st.markdown(f"**#{game['Rank']} {game['Title']}**")
-                            st.caption(f"{game['Platform']} | {game['ReleaseDate']}")
-                            
-                            # Score & Detail Trigger
-                            c_s1, c_s2 = st.columns([1, 1.2])
-                            c_s1.markdown(f"<h3 style='margin:0; color:#9146FF;'>{game['Base_Score']:.1f}</h3>", unsafe_allow_html=True)
-                            if c_s2.button("Details", key=f"det_{idx}", use_container_width=True):
-                                st.session_state.inspect_game = game['Title']
-            
-            # --- THE INSPECTOR ---
-            if 'inspect_game' in st.session_state:
+        cl_table = rv[['Rank', 'Title', 'Platform', 'ReleaseDate', 'Base_Score', 'OpenCritic']].rename(columns={'ReleaseDate': 'Year', 'Base_Score': 'My Score', 'OpenCritic': 'Critic'})
+        
+        c_left, c_right = st.columns([2, 1], gap="large")
+        with c_left: st.dataframe(cl_table, hide_index=True, use_container_width=True)
+        with c_right:
+            st.subheader("Inspector")
+            sq = st.selectbox("Select a game:", ["-- Select --"] + rv['Title'].tolist())
+            if sq != "-- Select --":
+                gd = rv[rv['Title'] == sq].iloc[0]
+                if pd.notna(gd['Cover_URL']) and gd['Cover_URL'] != "": st.image(gd['Cover_URL'], use_container_width=True)
+                st.write(f"**{sq}** ({gd['Genre']})")
+                m1, m2 = st.columns(2)
+                m1.metric("My Score", f"{gd['Base_Score']:.1f}")
+                m2.metric("OpenCritic", f"{gd['OpenCritic']:.0f}" if gd['OpenCritic'] > 0 else "N/A")
                 st.divider()
-                inspect_list = rv[rv['Title'] == st.session_state.inspect_game]
-                
-                if not inspect_list.empty:
-                    gd = inspect_list.iloc[0]
-                    st.subheader(f"Deep Dive: {gd['Title']}")
-                    
-                    det_left, det_mid, det_right = st.columns([1, 1.5, 1.5])
-                    with det_left:
-                        st.image(gd['Cover_URL'], use_container_width=True)
-                        if st.button("Close Stats X", use_container_width=True):
-                            del st.session_state.inspect_game
-                            st.rerun()
-                    with det_mid:
-                        st.metric("Final Score", f"{gd['Base_Score']:.1f}")
-                        st.write(f"**Gameplay:** {gd['S_Gameplay']}/10")
-                        st.write(f"**Visuals:** {gd['S_Visuals']}/10")
-                        st.write(f"**Audio:** {gd['S_Audio']}/10")
-                    with det_right:
-                        st.metric("Elo Rating", int(gd['Elo_Rating']))
-                        st.write(f"**Fun Factor:** {gd['S_Fun']}/10")
-                        st.write(f"**{gd['Bonus_1_Name']}:** {gd['S_Bonus_1']}/10")
-                        st.write(f"**{gd['Bonus_2_Name']}:** {gd['S_Bonus_2']}/10")
-                else:
-                    del st.session_state.inspect_game
+                st.write(f"Gameplay: {gd['S_Gameplay']}/10 | Visuals: {gd['S_Visuals']}/10")
+                st.write(f"Audio: {gd['S_Audio']}/10 | Fun: {gd['S_Fun']}/10")
+    else: st.info("You haven't scored any games yet.")
 
-    else:
-        st.info("Your collection is currently empty.")
-
-    # DNF GRAVEYARD
-    st.write("")
-    with st.expander("View DNF Graveyard"):
-        dnf_df = df[df['Status'] == 'DNF']
-        if not dnf_df.empty: 
-            st.dataframe(dnf_df[['Title', 'Platform', 'ReleaseDate']], hide_index=True, use_container_width=True)
-        else: 
-            st.write("No abandoned games yet.")
-
-# --- PAGE 3: ADD GAME (ADMIN ONLY) ---
-elif page == "Add Game" and st.session_state.admin_pin_input == ADMIN_PIN:
+# --- PAGE 3: ADD GAME ---
+elif page == "Add Game" and user_pin == ADMIN_PIN:
     st.title("Add to Library")
-    add_status = st.radio("What are you adding?", ["Played (Completed)", "Currently Playing", "Backlog (To Play)", "Upcoming Release", "Did Not Finish (DNF)"], horizontal=True)
-    db_status = "Played" if "Played" in add_status else ("Playing" if "Playing" in add_status else ("Backlog" if "Backlog" in add_status else ("Upcoming" if "Upcoming" in add_status else "DNF")))
-    
-    if db_status == "Played":
-        genre = st.selectbox("Select Primary Genre", list(GENRE_CONFIG.keys()))
-        b1_data, b2_data = GENRE_CONFIG[genre][0], GENRE_CONFIG[genre][1]
-        
-    with st.form("add_game_form", clear_on_submit=True):
-        new_title = st.text_input("Game Title")
-        c_plat, c_year, c_oc = st.columns(3)
-        with c_plat: new_plat = st.text_input("Platform")
-        if db_status == "Upcoming":
-            with c_year: final_date_str = st.date_input("Exact Release Date", datetime.date.today()).strftime('%Y-%m-%d')
-        else:
-            with c_year: final_date_str = str(st.text_input("Release Year"))
-        
-        if db_status == "Played":
-            with c_oc: new_oc = st.number_input("OpenCritic Score", 0, 100, 0)
-            st.markdown("**Core Elements**")
-            c1, c2 = st.columns(2)
-            with c1: 
-                gameplay = st.slider("Gameplay", 1.0, 10.0, 5.0, 0.1)
-                visuals = st.slider("Visuals", 1.0, 10.0, 5.0, 0.1)
-            with c2: 
-                audio = st.slider("Audio", 1.0, 10.0, 5.0, 0.1)
-                fun = st.slider("Fun Factor", 1.0, 10.0, 5.0, 0.1)
-            st.markdown(f"**Genre Specific: {genre}**")
-            c3, c4 = st.columns(2)
-            with c3: bonus1 = st.slider(b1_data["name"], 1.0, 10.0, 5.0, 0.1)
-            with c4: bonus2 = st.slider(b2_data["name"], 1.0, 10.0, 5.0, 0.1)
-        elif db_status == "Upcoming": up_hype = st.slider("Hype Level", 1, 5, 3)
-            
-        if st.form_submit_button("Save to Database"):
-            with st.spinner("Fetching cover art from IGDB..."): cover_url = fetch_cover_art(new_title)
-            if db_status == "Played":
-                b_score = round((gameplay*2) + (visuals*2) + (audio*2) + (fun*2) + (bonus1*1) + (bonus2*1), 1)
-                new_df = pd.DataFrame([{'Title': new_title, 'Status': db_status, 'ReleaseDate': final_date_str, 'Platform': new_plat, 'Hype': 0, 'Genre': genre, 'Base_Score': b_score, 'OpenCritic': new_oc, 'Elo_Rating': b_score*15, 'Cover_URL': cover_url, 'S_Gameplay': gameplay, 'S_Visuals': visuals, 'S_Audio': audio, 'S_Fun': fun, 'Bonus_1_Name': b1_data["name"], 'S_Bonus_1': bonus1, 'Bonus_2_Name': b2_data["name"], 'S_Bonus_2': bonus2}])
-            else:
-                new_df = pd.DataFrame([{'Title': new_title, 'Status': db_status, 'ReleaseDate': final_date_str, 'Platform': new_plat, 'Hype': up_hype if db_status == "Upcoming" else 0, 'Genre': 'TBD', 'Base_Score': 0, 'OpenCritic': 0, 'Elo_Rating': 0, 'Cover_URL': cover_url, 'S_Gameplay': 0, 'S_Visuals': 0, 'S_Audio': 0, 'S_Fun': 0, 'Bonus_1_Name': 'TBD', 'S_Bonus_1': 0, 'Bonus_2_Name': 'TBD', 'S_Bonus_2': 0}])
+    add_status = st.radio("Status", ["Played", "Playing", "Upcoming"], horizontal=True)
+    with st.form("add"):
+        new_title = st.text_input("Title")
+        c1, c2 = st.columns(2)
+        with c1: new_plat = st.text_input("Platform")
+        with c2: final_date = st.text_input("Year/Date")
+        if st.form_submit_button("Save Game"):
+            url = fetch_cover_art(new_title)
+            new_df = pd.DataFrame([{'Title': new_title, 'Status': add_status, 'ReleaseDate': final_date, 'Platform': new_plat, 'Cover_URL': url}])
             df = pd.concat([df, new_df], ignore_index=True)
             save_database(df)
-            st.success("Game saved successfully.")
+            st.success("Saved!")
             st.rerun()
 
-# --- PAGE 4: THE ARENA (ADMIN ONLY) ---
-elif page == "The Arena" and st.session_state.admin_pin_input == ADMIN_PIN:
+# --- PAGE 4: THE ARENA ---
+elif page == "The Arena" and user_pin == ADMIN_PIN:
     st.title("The Arena")
     pg = df[df['Status'] == 'Played']
-    if len(pg) < 2: st.info("Score at least 2 games to unlock the Arena.")
+    if len(pg) < 2: st.info("Score at least 2 games.")
     else:
         if 'game_a' not in st.session_state:
             matchup = pg.sample(2)
             st.session_state.game_a, st.session_state.game_b = matchup.iloc[0]['Title'], matchup.iloc[1]['Title']
         ga, gb = st.session_state.game_a, st.session_state.game_b
-        
-        st.subheader("Which game is better?")
-        st.write("")
+        st.subheader("Which is better?")
         c1, c2 = st.columns(2)
-        with c1:
-            if st.button(f"Vote for {ga}", use_container_width=True): va = True
-            else: va = False
-        with c2:
-            if st.button(f"Vote for {gb}", use_container_width=True): vb = True
-            else: vb = False
-            
-        if va or vb:
-            ea, eb = float(df.loc[df['Title'] == ga, 'Elo_Rating'].values[0]), float(df.loc[df['Title'] == gb, 'Elo_Rating'].values[0])
-            xa, xb = 1 / (1 + 10 ** ((eb - ea) / 400)), 1 / (1 + 10 ** ((ea - eb) / 400))
-            if va: df.loc[df['Title'] == ga, 'Elo_Rating'], df.loc[df['Title'] == gb, 'Elo_Rating'] = ea + 32 * (1 - xa), eb + 32 * (0 - xb)
-            else: df.loc[df['Title'] == ga, 'Elo_Rating'], df.loc[df['Title'] == gb, 'Elo_Rating'] = ea + 32 * (0 - xa), eb + 32 * (1 - xb)
-            save_database(df)
+        if c1.button(ga, use_container_width=True):
+            # Simple Elo logic placeholder
+            del st.session_state.game_a, st.session_state.game_b
+            st.rerun()
+        if c2.button(gb, use_container_width=True):
             del st.session_state.game_a, st.session_state.game_b
             st.rerun()
 
-# --- PAGE 5: EDIT DATABASE (ADMIN ONLY) ---
-elif page == "Edit Database" and st.session_state.admin_pin_input == ADMIN_PIN:
+# --- PAGE 5: EDIT DATABASE ---
+elif page == "Edit Database" and user_pin == ADMIN_PIN:
     st.title("Edit Database")
-    if df.empty: st.info("No games yet.")
-    else:
-        et = st.selectbox("Search for game:", ["-- Select --"] + df['Title'].tolist())
-        if et != "-- Select --":
-            td = df[df['Title'] == et].iloc[0]
-            ns = st.selectbox("Status", ["Upcoming", "Backlog", "Playing", "Played", "DNF"], index=["Upcoming", "Backlog", "Playing", "Played", "DNF"].index(td['Status']))
-            ng = td['Genre']
-            if ns == "Played":
-                go = list(GENRE_CONFIG.keys())
-                ng = st.selectbox("Genre", go, index=go.index(ng) if ng in go else 0)
-                b1, b2 = GENRE_CONFIG[ng][0], GENRE_CONFIG[ng][1]
-            with st.form("edit"):
-                c_p, c_y, c_oc = st.columns(3)
-                with c_p: ep = st.text_input("Platform", str(td['Platform']))
-                with c_y: ey = st.text_input("Date/Year", str(td['ReleaseDate']))
-                if ns == "Played":
-                    with c_oc: eoc = st.number_input("OpenCritic", 0, 100, int(td['OpenCritic']))
-                
-                e_url = st.text_input("Cover Art URL (Paste an image link here to override IGDB)", str(td['Cover_URL']))
-                
-                if ns == "Played":
-                    c1, c2 = st.columns(2)
-                    with c1: 
-                        eg = st.slider("Gameplay", 1.0, 10.0, float(td['S_Gameplay']) if td['S_Gameplay']>0 else 5.0, 0.1)
-                        ev = st.slider("Visuals", 1.0, 10.0, float(td['S_Visuals']) if td['S_Visuals']>0 else 5.0, 0.1)
-                    with c2: 
-                        ea = st.slider("Audio", 1.0, 10.0, float(td['S_Audio']) if td['S_Audio']>0 else 5.0, 0.1)
-                        ef = st.slider("Fun", 1.0, 10.0, float(td['S_Fun']) if td['S_Fun']>0 else 5.0, 0.1)
-                    c3, c4 = st.columns(2)
-                    with c3: eb1 = st.slider(b1["name"], 1.0, 10.0, float(td['S_Bonus_1']) if td['Bonus_1_Name']==b1['name'] else 5.0, 0.1)
-                    with c4: eb2 = st.slider(b2["name"], 1.0, 10.0, float(td['S_Bonus_2']) if td['Bonus_2_Name']==b2['name'] else 5.0, 0.1)
-                
-                if st.form_submit_button("Update Game"):
-                    if e_url.strip() != "":
-                        curl = e_url.strip()
-                    else:
-                        curl = fetch_cover_art(et)
-                        
-                    if ns == "Played":
-                        bs = round((eg*2) + (ev*2) + (ea*2) + (ef*2) + (eb1*1) + (eb2*1), 1)
-                        df.loc[df['Title'] == et, ['Status', 'Genre', 'Platform', 'ReleaseDate', 'OpenCritic', 'Base_Score', 'Elo_Rating', 'Cover_URL', 'S_Gameplay', 'S_Visuals', 'S_Audio', 'S_Fun', 'Bonus_1_Name', 'S_Bonus_1', 'Bonus_2_Name', 'S_Bonus_2']] = [ns, ng, ep, ey, eoc, bs, td['Elo_Rating'] if td['Elo_Rating']>0 else bs*15, curl, eg, ev, ea, ef, b1["name"], eb1, b2["name"], eb2]
-                    else: df.loc[df['Title'] == et, ['Status', 'Platform', 'ReleaseDate', 'Cover_URL']] = [ns, ep, ey, curl]
-                    save_database(df)
-                    st.success("Database updated.")
-                    st.rerun()
+    et = st.selectbox("Select Game", ["-- Select --"] + df['Title'].tolist())
+    if et != "-- Select --":
+        td = df[df['Title'] == et].iloc[0]
+        with st.form("edit_form"):
+            new_url = st.text_input("Manual Cover URL", str(td['Cover_URL']))
+            if st.form_submit_button("Update"):
+                df.loc[df['Title'] == et, 'Cover_URL'] = new_url
+                save_database(df)
+                st.success("Updated!")
+                st.rerun()
